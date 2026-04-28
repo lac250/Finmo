@@ -8,7 +8,7 @@ import {
   FixedExpense 
 } from '../types';
 import { SUBCATEGORIES } from '../constants';
-import { auth, db, handleFirestoreError, OperationType } from '../services/firebase';
+import { auth, db, handleFirestoreError, OperationType, testConnection } from '../services/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { 
   doc, 
@@ -54,6 +54,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
+    testConnection();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setFbUser(user);
@@ -64,22 +65,28 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
 
         const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setBaseIncome(data.baseIncome || 0);
-          setPayday(data.payday || 1);
+        try {
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setBaseIncome(data.baseIncome || 0);
+            setPayday(data.payday || 1);
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
         }
 
-        const tQuery = query(collection(db, 'users', user.uid, 'transactions'), orderBy('date', 'desc'));
+        const tPath = `users/${user.uid}/transactions`;
+        const tQuery = query(collection(db, tPath), orderBy('date', 'desc'));
         const unsubT = onSnapshot(tQuery, (snapshot) => {
           setTransactions(snapshot.docs.map(doc => doc.data() as Transaction));
-        });
+        }, (err) => handleFirestoreError(err, OperationType.LIST, tPath));
 
-        const fQuery = collection(db, 'users', user.uid, 'fixedExpenses');
+        const fPath = `users/${user.uid}/fixedExpenses`;
+        const fQuery = collection(db, fPath);
         const unsubF = onSnapshot(fQuery, (snapshot) => {
           setFixedExpenses(snapshot.docs.map(doc => doc.data() as FixedExpense));
-        });
+        }, (err) => handleFirestoreError(err, OperationType.LIST, fPath));
 
         setIsAuthReady(true);
 
@@ -186,7 +193,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (formType === 'fixed') {
       const newFixed: FixedExpense = { id, description, amount: val, category: category as any };
       if (fbUser) {
-        await setDoc(doc(db, 'users', fbUser.uid, 'fixedExpenses', id), newFixed);
+        const path = `users/${fbUser.uid}/fixedExpenses/${id}`;
+        try {
+          await setDoc(doc(db, path), newFixed);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, path);
+        }
       }
     } else {
       const newTransaction: Transaction = {
@@ -196,27 +208,47 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: (category === CategoryType.DEBT_INTEREST || category === CategoryType.DEBT_NO_INTEREST) ? dueDate : undefined
       };
       if (fbUser) {
-        await setDoc(doc(db, 'users', fbUser.uid, 'transactions', id), newTransaction);
+        const path = `users/${fbUser.uid}/transactions/${id}`;
+        try {
+          await setDoc(doc(db, path), newTransaction);
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, path);
+        }
       }
     }
   };
 
   const deleteTransaction = async (id: string) => {
     if (fbUser) {
-      await deleteDoc(doc(db, 'users', fbUser.uid, 'transactions', id));
+      const path = `users/${fbUser.uid}/transactions/${id}`;
+      try {
+        await deleteDoc(doc(db, path));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, path);
+      }
     }
   };
 
   const removeFixed = async (id: string) => {
     if (fbUser) {
-      await deleteDoc(doc(db, 'users', fbUser.uid, 'fixedExpenses', id));
+      const path = `users/${fbUser.uid}/fixedExpenses/${id}`;
+      try {
+        await deleteDoc(doc(db, path));
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, path);
+      }
     }
   };
 
   const resetData = async () => {
     if (fbUser) {
-      const userDocRef = doc(db, 'users', fbUser.uid);
-      await setDoc(userDocRef, { baseIncome: 0, payday: 1 }, { merge: true });
+      const path = `users/${fbUser.uid}`;
+      try {
+        const userDocRef = doc(db, path);
+        await setDoc(userDocRef, { baseIncome: 0, payday: 1 }, { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, path);
+      }
     }
     setBaseIncome(0);
     setPayday(1);
@@ -226,10 +258,12 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Sync Settings changes
   useEffect(() => {
-    if (fbUser) {
-      setDoc(doc(db, 'users', fbUser.uid), { baseIncome, payday }, { merge: true });
+    if (fbUser && isAuthReady) {
+      const path = `users/${fbUser.uid}`;
+      setDoc(doc(db, path), { baseIncome, payday }, { merge: true })
+        .catch(err => handleFirestoreError(err, OperationType.WRITE, path));
     }
-  }, [baseIncome, payday, fbUser]);
+  }, [baseIncome, payday, fbUser, isAuthReady]);
 
   return (
     <FinancialContext.Provider value={{

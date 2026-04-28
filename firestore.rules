@@ -11,12 +11,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isVerified() && request.auth.uid == userId;
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
     }
 
     // --- Entity Validations ---
@@ -40,32 +52,45 @@ service cloud.firestore {
 
     function isValidTransaction(data) {
       return data.keys().hasAll(['id', 'description', 'amount', 'category', 'subcategory', 'date']) &&
-             // Optional fields: interestAmount, dueDate
              data.id is string &&
              data.description is string && data.description.size() <= 200 &&
              data.amount is number &&
              data.category is string &&
              data.subcategory is string &&
-             data.date is string;
+             data.date is string &&
+             // Optional fields
+             (data.get('interestAmount', 0) is number) &&
+             (data.get('dueDate', '') is string);
     }
 
     // --- Collections ---
 
+    // Connection test document
+    match /test/connection {
+      allow get: if isSignedIn();
+    }
+
     match /users/{userId} {
       // User settings
       allow get: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isValidUserSettings(request.resource.data);
+      allow create: if isOwner(userId) && isValidUserSettings(incoming());
+      allow update: if isOwner(userId) && isValidUserSettings(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['baseIncome', 'payday']);
 
       // Sub-collections
       match /fixedExpenses/{expenseId} {
         allow list, get: if isOwner(userId);
-        allow create, update: if isOwner(userId) && isValidFixedExpense(request.resource.data) && isValidId(expenseId);
+        allow create: if isOwner(userId) && isValidFixedExpense(incoming()) && isValidId(expenseId);
+        allow update: if isOwner(userId) && isValidFixedExpense(incoming()) && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'category']);
         allow delete: if isOwner(userId);
       }
 
       match /transactions/{transactionId} {
         allow list, get: if isOwner(userId);
-        allow create, update: if isOwner(userId) && isValidTransaction(request.resource.data) && isValidId(transactionId);
+        allow create: if isOwner(userId) && isValidTransaction(incoming()) && isValidId(transactionId);
+        allow update: if isOwner(userId) && isValidTransaction(incoming()) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['description', 'amount', 'category', 'subcategory', 'date', 'interestAmount', 'dueDate']);
         allow delete: if isOwner(userId);
       }
     }

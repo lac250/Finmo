@@ -10,17 +10,17 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Validation connection as per instructions
-async function testConnection() {
+export async function testConnection() {
   try {
     // Attempt to get a dummy doc to test connection
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.error("Please check your Firebase configuration.");
     }
+    // Quietly ignore "insufficient permissions" for connection test if it happens before login
   }
 }
-testConnection();
 
 export enum OperationType {
   CREATE = 'create',

@@ -2,8 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, CategoryType, BudgetStats } from "../types";
 
-// Always use process.env.API_KEY directly for initialization
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Use VITE_GEMINI_API_KEY for standard Vite environments (like Vercel)
+// Fallback to process.env.GEMINI_API_KEY for AI Studio environment
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.warn("GEMINI_API_KEY is not defined. AI features will not work.");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key' });
 
 export const getFinancialAdvice = async (
   stats: BudgetStats,
