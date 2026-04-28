@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFinancial } from '../contexts/FinancialContext';
 import { 
   TrendingUpIcon, 
@@ -13,6 +13,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { CategoryType } from '../types';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { getFinancialAdvice } from '../services/geminiService';
 
 const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: any) => {
     const isOver = percentage > (limit || 100);
@@ -49,6 +50,13 @@ const Dashboard: React.FC = () => {
     const [quickDesc, setQuickDesc] = useState('');
     const [quickAmount, setQuickAmount] = useState('');
     const [quickCat, setQuickCat] = useState<CategoryType>(CategoryType.NEED);
+    const [mentorTip, setMentorTip] = useState<{ message: string } | null>(null);
+
+    useEffect(() => {
+        if (stats) {
+            getFinancialAdvice(stats, transactions, stats.totalIncome).then(setMentorTip);
+        }
+    }, [stats, transactions]);
 
     if (!stats) return null;
 
@@ -316,9 +324,9 @@ const Dashboard: React.FC = () => {
                             <ZapIcon className="w-32 h-32 text-slate-950" />
                         </div>
                         <div className="relative z-10 space-y-4">
-                            <h3 className="text-xl md:text-2xl font-black text-slate-950">Dica do Mentor</h3>
-                            <p className="text-slate-900/70 text-xs md:text-sm font-medium leading-tight">
-                                Sua renda extra variou +15% este mês. Que tal alocar metade desse bônus direto na sua reserva de emergência?
+                            <h3 className="text-xl md:text-2xl font-black text-white">Dica do Mentor</h3>
+                            <p className="text-white text-xs md:text-sm font-medium leading-tight">
+                                {mentorTip ? mentorTip.message : "Carregando dica do mentor..."}
                             </p>
                         </div>
                     </div>

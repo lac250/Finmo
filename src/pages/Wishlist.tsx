@@ -50,9 +50,37 @@ const Wishlist: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {wishlist.sort((a,b) => a.priority - b.priority).map(item => {
-                    const monthsToSave = stats ? (item.price / (stats.savings || 1)).toFixed(1) : '∞';
+                    const totalReserve = stats?.savings || 0;
+                    const itemPrice = item.price;
+                    const monthlySavingsRate = stats?.savings || 0;
+                    
+                    // Cálculo Primário: Tempo sem reserva
+                    const monthsWithoutReserve = monthlySavingsRate > 0 ? (itemPrice / monthlySavingsRate).toFixed(1) : '∞';
+
+                    // Lógica de Prioridade
+                    let reserveLimitPercent = 0;
+                    let isBlocked = false;
+                    let mentorMessage = "";
+
+                    if (item.priority === Priority.URGENT) {
+                        reserveLimitPercent = 0.20;
+                    } else if (item.priority === Priority.IMPORTANT) {
+                        reserveLimitPercent = 0.15;
+                    } else { // LONG_TERM
+                        isBlocked = true;
+                        mentorMessage = "Este é um desejo de longo prazo. Para sua segurança, vamos focar em adquiri-lo 100% com sua economia mensal, preservando sua reserva para emergências ou desejos de Nível 1.";
+                    }
+
+                    const maxReserveAllowedByReserveBalance = totalReserve * reserveLimitPercent;
+                    const reserveContribution = isBlocked ? 0 : Math.min(itemPrice * 0.5, maxReserveAllowedByReserveBalance); 
+                    const amountNeededFromSavings = itemPrice - reserveContribution;
+                    
+                    const monthsToSaveWithReserve = monthlySavingsRate > 0 ? (amountNeededFromSavings / monthlySavingsRate).toFixed(1) : '∞';
+                    const timeSaved = monthlySavingsRate > 0 ? (Number(monthsWithoutReserve) - Number(monthsToSaveWithReserve)).toFixed(1) : "0";
+                    const progress = Math.min((reserveContribution / itemPrice) * 100, 50);
+
                     return (
-                        <div key={item.id} className="glass p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border-white/5 space-y-4 group">
+                        <div key={item.id} className="glass p-6 rounded-[2.5rem] border-white/5 space-y-4 group">
                             <div className="flex justify-between items-start">
                                 <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${item.priority === Priority.URGENT ? "bg-red-500/10 text-red-500" : item.priority === Priority.IMPORTANT ? "bg-amber-500/10 text-amber-500" : "bg-blue-500/10 text-blue-400"}`}>P{item.priority}</div>
                                 <button onClick={() => deleteWishlistItem(item.id)} className="text-slate-600 hover:text-red-500"><Trash2Icon className="w-4 h-4" /></button>
@@ -60,12 +88,37 @@ const Wishlist: React.FC = () => {
                             <h3 className="text-lg font-bold text-white">{item.name}</h3>
                             <div className="text-2xl font-black text-emerald-400">{item.price.toLocaleString()} MT</div>
                             
-                            <div className="pt-4 border-t border-white/5 space-y-2 mt-4">
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <TargetIcon className="w-4 h-4 text-emerald-500" />
-                                    <span>Economizando {stats?.savings || 0} MT/mês</span>
+                            <div className="grid grid-cols-3 gap-2 py-4 border-y border-white/5 text-center">
+                                <div className="space-y-1">
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase">Via Salário</div>
+                                    <div className="text-xs font-black text-white">{monthsWithoutReserve} m</div>
                                 </div>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Tempo estimado: {monthsToSave} meses</p>
+                                <div className="space-y-1 border-x border-white/5">
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase">Via Reserva</div>
+                                    <div className="text-xs font-black text-emerald-400">
+                                        {isBlocked ? "0" : reserveContribution.toLocaleString()} <span className="text-[8px]">MT</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase">Veredito</div>
+                                    <div className="text-[9px] font-bold text-white leading-tight">
+                                        {!isBlocked ? "Viável e Seguro" : "Alerta de Segurança"}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                                    {isBlocked ? 
+                                     "Este é um desejo de longo prazo. Foco total na economia mensal para proteger sua estabilidade." :
+                                     `Ao usar ${reserveContribution.toLocaleString()} MT da reserva, você reduz seu tempo de espera em ${timeSaved} meses!`
+                                    }
+                                </p>
+                                {!isBlocked && (
+                                    <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );

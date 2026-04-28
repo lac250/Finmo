@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFinancial } from '../contexts/FinancialContext';
-import { ShieldCheckIcon, TrendingUpIcon, WalletIcon, LandmarkIcon } from 'lucide-react';
+import { ShieldCheckIcon, TrendingUpIcon, WalletIcon, LandmarkIcon, PlusIcon } from 'lucide-react';
 import { CategoryType } from '../types';
 
 const Reserve: React.FC = () => {
-    const { stats, transactions } = useFinancial();
+    const { stats, transactions, addTransaction } = useFinancial();
+    const [isAdding, setIsAdding] = useState(false);
+    const [desc, setDesc] = useState('');
+    const [amount, setAmount] = useState('');
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!desc || !amount) return;
+        
+        await addTransaction({
+            description: desc,
+            amount: Number(amount),
+            category: CategoryType.SAVING,
+            subcategory: 'Aporte Extra',
+            date: new Date().toISOString()
+        });
+        
+        setDesc('');
+        setAmount('');
+        setIsAdding(false);
+    };
     
     if (!stats) return null;
 
@@ -14,10 +34,52 @@ const Reserve: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <header className="space-y-2">
-                <h1 className="text-3xl font-black text-white">Reserva de Emergência</h1>
-                <p className="text-slate-400">Seu escudo financeiro. A meta é manter sempre 20% da sua renda investida.</p>
+            <header className="flex justify-between items-center">
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-black text-white">Reserva de Emergência</h1>
+                    <p className="text-slate-400">Seu escudo financeiro. A meta é manter sempre 20% da sua renda investida.</p>
+                </div>
+                <button 
+                    onClick={() => setIsAdding(!isAdding)}
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-500 text-slate-950 font-black rounded-2xl hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+                >
+                    <PlusIcon className="w-5 h-5" /> Novo Aporte
+                </button>
             </header>
+
+            {isAdding && (
+                <div className="glass p-8 rounded-[2.5rem] border-emerald-500/20 animate-in slide-in-from-top-4 duration-300">
+                    <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Descrição (ex: Trabalho Extra)</label>
+                            <input 
+                                value={desc}
+                                onChange={e => setDesc(e.target.value)}
+                                placeholder="Trabalho extra, bônus..."
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Valor (MT)</label>
+                            <input 
+                                type="number"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                placeholder="0,00"
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
+                        </div>
+                        <div className="flex items-end">
+                            <button 
+                                type="submit"
+                                className="w-full bg-emerald-500 py-4 text-slate-950 font-black rounded-2xl hover:bg-emerald-400 transition-colors shadow-lg"
+                            >
+                                Confirmar Aporte
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="glass p-8 rounded-[2.5rem] border-emerald-500/20 bg-emerald-500/5 space-y-6">
