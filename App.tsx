@@ -206,7 +206,12 @@ const App: React.FC = () => {
     try {
       await loginWithGoogle();
       setAuthError(null);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        // User closed the popup, don't show an error
+        setAuthError(null);
+        return;
+      }
       setAuthError("Erro ao autenticar com Google.");
     }
   };
