@@ -1,0 +1,122 @@
+import React, { useState, useEffect } from 'react';
+import { useFinancial } from '../contexts/FinancialContext';
+import { getFinancialAdvice } from '../services/geminiService';
+import { AIAdvice } from '../types';
+import { BrainCircuitIcon, SparklesIcon, AlertTriangleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+const Mentor: React.FC = () => {
+    const { stats, transactions } = useFinancial();
+    const [advice, setAdvice] = useState<AIAdvice | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const fetchAdvice = async () => {
+        if (!stats) return;
+        setLoading(true);
+        try {
+            const res = await getFinancialAdvice(stats, transactions, stats.totalIncome);
+            setAdvice(res);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-8">
+            <header className="text-center space-y-2">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest">
+                    <BrainCircuitIcon className="w-4 h-4" /> AI Powered Mentor
+                </div>
+                <h1 className="text-4xl font-black text-white">Conselheiro Finmo</h1>
+                <p className="text-slate-400">Análise profunda do seu comportamento financeiro com recomendações acionáveis.</p>
+            </header>
+
+            <div className="glass p-8 rounded-[2.5rem] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <BrainCircuitIcon className="w-32 h-32" />
+                </div>
+                
+                <AnimatePresence mode="wait">
+                    {!advice && !loading ? (
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            className="text-center space-y-6 py-12"
+                        >
+                            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto">
+                                <SparklesIcon className="w-10 h-10 text-slate-600" />
+                            </div>
+                            <p className="text-slate-500 max-w-xs mx-auto">Clique no botão abaixo para receber uma análise personalizada baseada nos seus gastos deste mês.</p>
+                            <button 
+                                onClick={fetchAdvice}
+                                className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-lg active:scale-95"
+                            >
+                                Pedir Conselho
+                            </button>
+                        </motion.div>
+                    ) : loading ? (
+                        <motion.div 
+                            initial={{ opacity: 0 }} 
+                            animate={{ opacity: 1 }} 
+                            exit={{ opacity: 0 }}
+                            className="text-center py-20 space-y-4"
+                        >
+                            <Loader2Icon className="w-12 h-12 text-emerald-500 animate-spin mx-auto" />
+                            <p className="text-slate-400 animate-pulse font-medium">Analisando transações e fluxos...</p>
+                        </motion.div>
+                    ) : (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }} 
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-6"
+                        >
+                            <div className={`p-4 rounded-2xl flex items-start gap-4 ${
+                                advice?.status === 'critical' ? 'bg-red-500/10 border border-red-500/20' :
+                                advice?.status === 'warning' ? 'bg-amber-500/10 border border-amber-500/20' :
+                                'bg-emerald-500/10 border border-emerald-500/20'
+                            }`}>
+                                {advice?.status === 'critical' ? <AlertTriangleIcon className="w-6 h-6 text-red-500" /> :
+                                 advice?.status === 'warning' ? <AlertTriangleIcon className="w-6 h-6 text-amber-500" /> :
+                                 <CheckCircle2Icon className="w-6 h-6 text-emerald-500" />}
+                                <div>
+                                    <h3 className="font-bold text-white text-lg">Status do Mês</h3>
+                                    <p className="text-slate-300 leading-relaxed">{advice?.message}</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest pl-2">Próximos Passos</h4>
+                                <div className="grid gap-3">
+                                    {advice?.recommendations.map((rec, i) => (
+                                        <motion.div 
+                                            key={i}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: i * 0.1 }}
+                                            className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 flex items-center gap-3"
+                                        >
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                            <p className="text-sm text-slate-300">{rec}</p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={() => setAdvice(null)}
+                                className="w-full py-4 text-slate-500 text-sm font-bold hover:text-slate-300 transition-colors"
+                            >
+                                Limpar e Recomeçar
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
+    );
+};
+
+export default Mentor;

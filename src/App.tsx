@@ -4,7 +4,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { FinancialProvider, useFinancial } from './contexts/FinancialContext';
 import RootLayout from './layouts/RootLayout';
 import Dashboard from './pages/Dashboard';
-import FixedExpenses from './pages/FixedExpenses';
+import Transactions from './pages/Transactions';
+import Mentor from './pages/Mentor';
+import Reserve from './pages/Reserve';
+import Wishlist from './pages/Wishlist';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 
@@ -25,7 +28,10 @@ const AppRoutes: React.FC = () => {
         <Routes>
             <Route path="/" element={<RootLayout />}>
                 <Route index element={<Dashboard />} />
-                <Route path="fixed-expenses" element={<FixedExpenses />} />
+                <Route path="transactions" element={<Transactions />} />
+                <Route path="mentor" element={<Mentor />} />
+                <Route path="reserve" element={<Reserve />} />
+                <Route path="wishlist" element={<Wishlist />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
