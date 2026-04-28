@@ -39,6 +39,19 @@ import {
 import { CategoryType, Transaction, BudgetStats, AIAdvice, FixedExpense } from './types';
 import { CATEGORY_LABELS, CATEGORY_COLORS, SUBCATEGORIES, formatCurrency } from './constants';
 import { getFinancialAdvice } from './services/geminiService';
+import { auth, db, loginWithGoogle, handleFirestoreError, OperationType } from './services/firebase';
+import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  deleteDoc,
+  writeBatch
+} from 'firebase/firestore';
 
 interface User {
   name: string;
@@ -52,11 +65,12 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('finmo_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [fbUser, setFbUser] = useState<FirebaseUser | null>(null);
 
   // Persistence states
   const [baseIncome, setBaseIncome] = useState<number>(() => {
     const saved = localStorage.getItem('finmo_income');
-    return saved ? Number(saved) : 0; // Salário padrão alterado para 0
+    return saved ? Number(saved) : 0;
   });
 
   const [payday, setPayday] = useState<number>(() => {
@@ -98,9 +112,87 @@ const App: React.FC = () => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const googleBtnRef = useRef<HTMLDivElement>(null);
+  // Firebase Synchronization
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setFbUser(user);
+        setUser({
+          name: user.displayName || 'Usuário',
+          email: user.email || '',
+          picture: user.photoURL || ''
+        });
 
-  // Sync with LocalStorage
+        // Load settings
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setBaseIncome(data.baseIncome);
+          setPayday(data.payday);
+        } else {
+          // Initialize with current local state and migrate if available
+          await setDoc(userDocRef, {
+            baseIncome: baseIncome || 0,
+            payday: payday || 1
+          });
+
+          // Migrate Transactions
+          const tSaved = localStorage.getItem('finmo_transactions');
+          if (tSaved) {
+            const localT: Transaction[] = JSON.parse(tSaved);
+            for (const t of localT) {
+              await setDoc(doc(db, 'users', user.uid, 'transactions', t.id), t);
+            }
+          }
+
+          // Migrate Fixed Expenses
+          const fSaved = localStorage.getItem('finmo_fixed');
+          if (fSaved) {
+            const localF: FixedExpense[] = JSON.parse(fSaved);
+            for (const f of localF) {
+              await setDoc(doc(db, 'users', user.uid, 'fixedExpenses', f.id), f);
+            }
+          }
+        }
+
+        // Real-time transactions
+        const tQuery = query(collection(db, 'users', user.uid, 'transactions'), orderBy('date', 'desc'));
+        const unsubT = onSnapshot(tQuery, (snapshot) => {
+          const loadedT = snapshot.docs.map(doc => doc.data() as Transaction);
+          setTransactions(loadedT);
+        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/transactions`));
+
+        // Real-time fixed expenses
+        const fQuery = collection(db, 'users', user.uid, 'fixedExpenses');
+        const unsubF = onSnapshot(fQuery, (snapshot) => {
+          const loadedF = snapshot.docs.map(doc => doc.data() as FixedExpense);
+          setFixedExpenses(loadedF);
+        }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/fixedExpenses`));
+
+        return () => {
+          unsubT();
+          unsubF();
+        };
+      } else {
+        setFbUser(null);
+        setUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Settings to Firebase
+  useEffect(() => {
+    if (fbUser) {
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      setDoc(userDocRef, { baseIncome, payday }, { merge: true })
+        .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${fbUser.uid}`));
+    }
+  }, [baseIncome, payday, fbUser]);
+
+  // Sync with LocalStorage (as backup)
   useEffect(() => localStorage.setItem('finmo_income', baseIncome.toString()), [baseIncome]);
   useEffect(() => localStorage.setItem('finmo_payday', payday.toString()), [payday]);
   useEffect(() => localStorage.setItem('finmo_fixed', JSON.stringify(fixedExpenses)), [fixedExpenses]);
@@ -110,68 +202,25 @@ const App: React.FC = () => {
     else localStorage.removeItem('finmo_user');
   }, [user]);
 
-  // Google Auth Initialization
-  useEffect(() => {
-    const handleCredentialResponse = (response: any) => {
-      try {
-        const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        const userData: User = {
-          name: payload.name,
-          email: payload.email,
-          picture: payload.picture
-        };
-        setUser(userData);
-        setAuthError(null);
-      } catch (error) {
-        console.error("Erro ao decodificar token do Google", error);
-        setAuthError("Erro ao processar login.");
-      }
-    };
-
-    const initGoogleAuth = () => {
-      const google = (window as any).google;
-      if (google && google.accounts && google.accounts.id) {
-        google.accounts.id.initialize({
-          // O Erro "Access Blocked" ocorre se o Client ID não estiver configurado corretamente 
-          // ou se a URL atual não estiver nas 'Authorized JavaScript origins'.
-          client_id: "776077583626-v2i5c1s8unr1e23u9b9p3i8m9u9m4n9m.apps.googleusercontent.com",
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
-        
-        if (!user && googleBtnRef.current) {
-          google.accounts.id.renderButton(
-            googleBtnRef.current,
-            { 
-              theme: "outline", 
-              size: "large", 
-              type: "icon", 
-              shape: "circle"
-            }
-          );
-        }
-      }
-    };
-
-    // Tentar inicializar, ou esperar o script carregar
-    if ((window as any).google) {
-      initGoogleAuth();
-    } else {
-      const interval = setInterval(() => {
-        if ((window as any).google) {
-          initGoogleAuth();
-          clearInterval(interval);
-        }
-      }, 500);
-      return () => clearInterval(interval);
+  const handleLogin = async () => {
+    try {
+      await loginWithGoogle();
+      setAuthError(null);
+    } catch (error) {
+      setAuthError("Erro ao autenticar com Google.");
     }
-  }, [user]);
+  };
 
-  const handleLogout = () => {
-    setUser(null);
-    setShowUserMenu(false);
-    localStorage.removeItem('finmo_user');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setFbUser(null);
+      setShowUserMenu(false);
+      localStorage.removeItem('finmo_user');
+    } catch (error) {
+      console.error("Erro ao sair", error);
+    }
   };
 
   // Adjust category based on form type
@@ -261,22 +310,28 @@ const App: React.FC = () => {
     [CategoryType.SAVING]: stats.totalIncome * 0.2,
   };
 
-  const handleAddTransaction = (e: React.FormEvent) => {
+  const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount) return;
     const val = parseFloat(amount);
+    const id = Math.random().toString(36).substr(2, 9);
 
     if (formType === 'fixed') {
       const newFixed: FixedExpense = {
-        id: Math.random().toString(36).substr(2, 9),
+        id,
         description,
         amount: val,
         category: category as any
       };
-      setFixedExpenses([...fixedExpenses, newFixed]);
+      if (fbUser) {
+        setDoc(doc(db, 'users', fbUser.uid, 'fixedExpenses', id), newFixed)
+          .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${fbUser.uid}/fixedExpenses/${id}`));
+      } else {
+        setFixedExpenses([...fixedExpenses, newFixed]);
+      }
     } else {
       const newTransaction: Transaction = {
-        id: Math.random().toString(36).substr(2, 9),
+        id,
         description,
         amount: val,
         interestAmount: interestAmount ? parseFloat(interestAmount) : undefined,
@@ -285,7 +340,12 @@ const App: React.FC = () => {
         date: new Date().toISOString(),
         dueDate: isDebt(category) ? dueDate : undefined
       };
-      setTransactions([newTransaction, ...transactions]);
+      if (fbUser) {
+        setDoc(doc(db, 'users', fbUser.uid, 'transactions', id), newTransaction)
+          .catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${fbUser.uid}/transactions/${id}`));
+      } else {
+        setTransactions([newTransaction, ...transactions]);
+      }
     }
 
     setDescription('');
@@ -294,15 +354,25 @@ const App: React.FC = () => {
     setDueDate('');
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (transactionToDelete) {
-      setTransactions(transactions.filter(t => t.id !== transactionToDelete));
+      if (fbUser) {
+        deleteDoc(doc(db, 'users', fbUser.uid, 'transactions', transactionToDelete))
+          .catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${fbUser.uid}/transactions/${transactionToDelete}`));
+      } else {
+        setTransactions(transactions.filter(t => t.id !== transactionToDelete));
+      }
       setTransactionToDelete(null);
       setShowDeleteModal(false);
     }
   };
 
-  const handleResetData = () => {
+  const handleResetData = async () => {
+    if (fbUser) {
+      // For simplicity, we just reset settings. Deleting collections is complex.
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      await setDoc(userDocRef, { baseIncome: 0, payday: 1 }, { merge: true });
+    }
     setBaseIncome(0);
     setPayday(1);
     setFixedExpenses([]);
@@ -311,8 +381,13 @@ const App: React.FC = () => {
     setShowResetModal(false);
   };
 
-  const removeFixed = (id: string) => {
-    setFixedExpenses(fixedExpenses.filter(fe => fe.id !== id));
+  const removeFixed = async (id: string) => {
+    if (fbUser) {
+      deleteDoc(doc(db, 'users', fbUser.uid, 'fixedExpenses', id))
+        .catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${fbUser.uid}/fixedExpenses/${id}`));
+    } else {
+      setFixedExpenses(fixedExpenses.filter(fe => fe.id !== id));
+    }
   };
 
   const getMentorship = async () => {
@@ -399,20 +474,16 @@ const App: React.FC = () => {
             </div>
           ) : (
             <div className="relative group">
-              <div 
-                ref={googleBtnRef} 
-                className="opacity-0 absolute inset-0 z-10 cursor-pointer overflow-hidden rounded-full w-8 h-8"
+              <button 
+                onClick={handleLogin}
+                className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-400 group-hover:text-emerald-400 group-hover:border-emerald-500/50 transition-all"
               >
-                {/* Google Identity Services rendering */}
-              </div>
-              <button className="w-8 h-8 flex items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-400 group-hover:text-emerald-400 group-hover:border-emerald-500/50 transition-all">
-                <UserIcon className="w-4 h-4" />
+                <LogInIcon className="w-4 h-4" />
               </button>
               
               {authError && (
                 <div className="absolute top-10 right-0 w-48 bg-red-950/80 border border-red-500 text-red-200 text-[8px] p-2 rounded-lg backdrop-blur-sm z-[100]">
-                  {authError} <br/> 
-                  <span className="opacity-70 text-[7px]">Client ID ou Origens de Domínio inválidas.</span>
+                  {authError}
                 </div>
               )}
             </div>

@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "User Settings",
+      "description": "General settings for the user",
+      "type": "object",
+      "properties": {
+        "baseIncome": { "type": "number", "description": "User base monthly income" },
+        "payday": { "type": "number", "description": "Day of the month for payday" }
+      },
+      "required": ["baseIncome", "payday"]
+    },
+    "FixedExpense": {
+      "title": "Fixed Expense",
+      "description": "Recurring monthly expense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "enum": ["NEED", "WANT", "DEBT_NO_INTEREST"] }
+      },
+      "required": ["id", "description", "amount", "category"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Individual financial transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "interestAmount": { "type": "number" },
+        "category": { "type": "string" },
+        "subcategory": { "type": "string" },
+        "date": { "type": "string" },
+        "dueDate": { "type": "string" }
+      },
+      "required": ["id", "description", "amount", "category", "subcategory", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserSettings",
+      "description": "User profile and settings"
+    },
+    "/users/{userId}/fixedExpenses/{expenseId}": {
+      "schema": "FixedExpense",
+      "description": "User's fixed expenses"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "User's individual transactions"
+    }
+  }
+}
