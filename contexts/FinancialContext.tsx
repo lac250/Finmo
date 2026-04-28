@@ -39,6 +39,7 @@ interface FinancialContextType {
   resetData: () => Promise<void>;
   safeToSpendDaily: number;
   daysUntilPayday: number;
+  isAuthReady: boolean;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -50,6 +51,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [payday, setPayday] = useState<number>(1);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -79,6 +81,8 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           setFixedExpenses(snapshot.docs.map(doc => doc.data() as FixedExpense));
         });
 
+        setIsAuthReady(true);
+
         return () => {
           unsubT();
           unsubF();
@@ -86,6 +90,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       } else {
         setFbUser(null);
         setUser(null);
+        setIsAuthReady(true);
       }
     });
     return () => unsubscribe();
@@ -231,7 +236,7 @@ export const FinancialProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       user, fbUser, baseIncome, setBaseIncome, payday, setPayday, 
       fixedExpenses, transactions, stats, projectionData, targets,
       addTransaction, deleteTransaction, removeFixed, resetData,
-      safeToSpendDaily, daysUntilPayday
+      safeToSpendDaily, daysUntilPayday, isAuthReady
     }}>
       {children}
     </FinancialContext.Provider>
