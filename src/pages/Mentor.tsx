@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFinancial } from '../contexts/FinancialContext';
-import { getFinancialAdvice, getChatResponse } from '../services/geminiService';
+import { getFinancialAdvice, getChatResponse } from '../services/aiService';
 import { AIAdvice } from '../types';
 import { 
     BrainCircuitIcon, 
@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 
 const Mentor: React.FC = () => {
-    const { stats, transactions } = useFinancial();
+    const { stats, transactions, wishlist } = useFinancial();
     const [advice, setAdvice] = useState<AIAdvice | null>(null);
     const [loading, setLoading] = useState(false);
     
@@ -40,7 +40,7 @@ const Mentor: React.FC = () => {
         if (!stats) return;
         setLoading(true);
         try {
-            const res = await getFinancialAdvice(stats, transactions);
+            const res = await getFinancialAdvice(stats, transactions, wishlist);
             setAdvice(res);
         } catch (e) {
             console.error(e);
@@ -59,7 +59,7 @@ const Mentor: React.FC = () => {
         setIsTyping(true);
 
         try {
-            const response = await getChatResponse(userInput, chatMessages, stats, transactions);
+            const response = await getChatResponse(userInput, chatMessages, stats, transactions, wishlist);
             setChatMessages(prev => [...prev, { role: 'model', text: response }]);
         } catch (error) {
             console.error("Chat error:", error);

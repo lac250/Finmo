@@ -14,7 +14,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { CategoryType } from '../types';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { getFinancialAdvice } from '../services/geminiService';
+import { getFinancialAdvice } from '../services/aiService';
 
 const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: any) => {
     const isOver = percentage > (limit || 100);
@@ -47,7 +47,7 @@ const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: a
 };
 
 const Dashboard: React.FC = () => {
-    const { stats, transactions, addTransaction } = useFinancial();
+    const { stats, transactions, addTransaction, wishlist } = useFinancial();
     const [quickDesc, setQuickDesc] = useState('');
     const [quickAmount, setQuickAmount] = useState('');
     const [quickJustification, setQuickJustification] = useState('');
@@ -57,9 +57,9 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         if (stats) {
-            getFinancialAdvice(stats, transactions).then(setMentorTip);
+            getFinancialAdvice(stats, transactions, wishlist).then(setMentorTip);
         }
-    }, [stats, transactions]);
+    }, [stats, transactions, wishlist]);
 
     if (!stats) return null;
 
