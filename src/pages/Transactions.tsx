@@ -223,7 +223,10 @@ const Transactions: React.FC = () => {
                                                 {t.subcategory}
                                             </div>
                                             {t.interestAmount && t.category === CategoryType.DEBT_INTEREST && (
-                                                <div className="text-red-500">Juros: {t.interestAmount.toLocaleString()} MT</div>
+                                                <div className="flex items-center gap-1.5 mt-1 bg-red-950/30 text-red-500 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg border border-red-500/30 w-fit">
+                                                    <AlertTriangleIcon className="w-3 h-3" />
+                                                    <span>Juros: {t.interestAmount.toLocaleString()} MT</span>
+                                                </div>
                                             )}
                                         </div>
                                     </td>

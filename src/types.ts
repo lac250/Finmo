@@ -34,8 +34,10 @@ export interface FixedExpense {
   id: string;
   description: string;
   amount: number;
+  interestAmount?: number;
+  dueDate?: string;
   justification: string;
-  category: CategoryType.NEED | CategoryType.WANT | CategoryType.DEBT_NO_INTEREST;
+  category: CategoryType;
 }
 
 export interface Transaction {

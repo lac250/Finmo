@@ -206,11 +206,14 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     // Add fixed expenses
     const fixedNeeds = fixedExpenses.filter(f => f.category === CategoryType.NEED).reduce((sum, f) => sum + f.amount, 0);
     const fixedWants = fixedExpenses.filter(f => f.category === CategoryType.WANT).reduce((sum, f) => sum + f.amount, 0);
+    const debtInterest = fixedExpenses.filter(f => f.category === CategoryType.DEBT_INTEREST).reduce((sum, f) => sum + (f.amount + (f.interestAmount || 0)), 0);
+    const debtNoInterest = fixedExpenses.filter(f => f.category === CategoryType.DEBT_NO_INTEREST).reduce((sum, f) => sum + f.amount, 0);
+    const fixedDebts = debtInterest + debtNoInterest;
 
     const totalNeeds = needs + fixedNeeds;
     const totalWants = wants + fixedWants;
     
-    const totalSpent = totalNeeds + totalWants + savings;
+    const totalSpent = totalNeeds + totalWants + savings + fixedDebts;
     
     return {
         baseIncome,
@@ -222,9 +225,9 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
         wants: totalWants,
         fixedWants,
         savings,
-        debtInterest: 0,
-        debtNoInterest: 0,
-        fixedDebts: 0,
+        debtInterest,
+        debtNoInterest,
+        fixedDebts,
         totalSpent
     } as BudgetStats;
   }, [baseIncome, transactions, fixedExpenses, isAuthReady, fbUser]);
