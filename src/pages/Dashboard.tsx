@@ -47,9 +47,10 @@ const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: a
 };
 
 const Dashboard: React.FC = () => {
-    const { stats, transactions, addTransaction, wishlist } = useFinancial();
+    const { stats, transactions, addTransaction, wishlist, dailySnapshots } = useFinancial();
     const [quickDesc, setQuickDesc] = useState('');
     const [quickAmount, setQuickAmount] = useState('');
+    const [quickInterestAmount, setQuickInterestAmount] = useState('');
     const [quickJustification, setQuickJustification] = useState('');
     const [quickCat, setQuickCat] = useState<CategoryType>(CategoryType.NEED);
     const [mentorTip, setMentorTip] = useState<{ message: string } | null>(null);
@@ -79,6 +80,7 @@ const Dashboard: React.FC = () => {
         await addTransaction({
             description: quickDesc,
             amount: Number(quickAmount),
+            interestAmount: quickCat === CategoryType.DEBT_INTEREST ? Number(quickInterestAmount) : undefined,
             justification: quickJustification,
             category: quickCat,
             subcategory: 'Geral',
@@ -86,35 +88,39 @@ const Dashboard: React.FC = () => {
         });
         setQuickDesc('');
         setQuickAmount('');
+        setQuickInterestAmount('');
         setQuickJustification('');
     };
 
-    // Calculate chart data from transactions
+    // Calculate chart data from snapshots
     const chartData = useMemo(() => {
-        const data: { date: string, saldo: number, despesas: number, reserva: number, despesasFixas: number }[] = [];
+        const data = [];
         const today = new Date();
         
-        // Simple balance calculation
-        const currentBalance = stats.totalIncome - stats.totalSpent;
-        const totalExpenses = stats.totalNeeds + stats.wants;
-        const totalSavings = stats.savings;
-        const totalFixedExpenses = stats.fixedNeeds + stats.fixedWants;
-
+        // Find latest available snapshot to initialize
+        let lastVal = { balance: stats.totalIncome - stats.totalSpent, expenses: stats.totalSpent, savings: stats.savings };
+        
         for (let i = 29; i >= 0; i--) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
-            const dateStr = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+            const dateStr = date.toISOString().split('T')[0];
+            
+            const snapshot = dailySnapshots.find(s => s.date === dateStr);
+            
+            if (snapshot) {
+                lastVal = { balance: snapshot.balance, expenses: snapshot.expenses, savings: snapshot.savings };
+            }
             
             data.push({
-                date: dateStr,
-                saldo: currentBalance,
-                despesas: totalExpenses,
-                reserva: totalSavings,
-                despesasFixas: totalFixedExpenses
+                date: dateStr.split('-').reverse().slice(0, 2).join('/'),
+                saldo: lastVal.balance,
+                despesas: lastVal.expenses,
+                reserva: lastVal.savings,
+                despesasFixas: stats.fixedNeeds + stats.fixedWants + stats.fixedDebts,
             });
         }
         return data;
-    }, [transactions, stats]);
+    }, [dailySnapshots, stats]);
 
     const needPercentage = (stats.totalNeeds / stats.totalIncome) * 100 || 0;
     const wantPercentage = (stats.wants / stats.totalIncome) * 100 || 0;
@@ -206,28 +212,36 @@ const Dashboard: React.FC = () => {
                                         stroke="#10b981" 
                                         strokeWidth={3}
                                         fillOpacity={1} 
-                                        fill="url(#colorSaldo)" 
+                                        fill="url(#colorSaldo)"
+                                        isAnimationActive={true}
+                                        animationDuration={1500}
                                     />
                                     <Area 
                                         type="monotone" 
                                         dataKey="despesas" 
                                         stroke="#ef4444" 
                                         strokeWidth={3}
-                                        fill="none" 
+                                        fill="none"
+                                        isAnimationActive={true}
+                                        animationDuration={1500}
                                     />
                                     <Area 
                                         type="monotone" 
                                         dataKey="reserva" 
                                         stroke="#3b82f6" 
                                         strokeWidth={3}
-                                        fill="none" 
+                                        fill="none"
+                                        isAnimationActive={true}
+                                        animationDuration={1500}
                                     />
                                     <Area 
                                         type="monotone" 
                                         dataKey="despesasFixas" 
                                         stroke="#f97316" 
                                         strokeWidth={3}
-                                        fill="none" 
+                                        fill="none"
+                                        isAnimationActive={true}
+                                        animationDuration={1500}
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -299,6 +313,15 @@ const Dashboard: React.FC = () => {
                                 />
                                 <ZapIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
                             </div>
+                            {quickCat === CategoryType.DEBT_INTEREST && (
+                                <input 
+                                    type="number"
+                                    value={quickInterestAmount}
+                                    onChange={e => setQuickInterestAmount(e.target.value)}
+                                    placeholder="Valor dos Juros (MT)"
+                                    className="w-full bg-red-900/10 border border-red-500/20 rounded-2xl px-4 py-3 text-sm text-red-200 focus:border-red-500/50 outline-none transition-colors"
+                                />
+                            )}
                             <input 
                                 value={quickJustification}
                                 onChange={e => setQuickJustification(e.target.value)}
@@ -337,6 +360,11 @@ const Dashboard: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-white truncate">{t.description}</p>
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t.subcategory}</p>
+                                        {t.interestAmount && t.category === CategoryType.DEBT_INTEREST && (
+                                          <p className="text-[10px] text-red-500 font-bold uppercase tracking-wider pt-1">
+                                            Juros: {t.interestAmount} MT
+                                          </p>
+                                        )}
                                     </div>
                                     <div className={`text-sm font-black ${t.category === CategoryType.INCOME ? 'text-emerald-500' : 'text-slate-300'}`}>
                                         {t.amount.toLocaleString()} MT

@@ -25,6 +25,7 @@ const Transactions: React.FC = () => {
     // Form States
     const [desc, setDesc] = useState('');
     const [amount, setAmount] = useState('');
+    const [interest, setInterest] = useState('');
     const [justification, setJustification] = useState('');
     const [category, setCategory] = useState<CategoryType>(CategoryType.NEED);
     const [subcategory, setSubcategory] = useState('');
@@ -52,6 +53,7 @@ const Transactions: React.FC = () => {
         await addTransaction({
             description: desc,
             amount: Number(amount),
+            interestAmount: category === CategoryType.DEBT_INTEREST ? Number(interest) : undefined,
             justification,
             category,
             subcategory: subcategory || 'Geral',
@@ -60,6 +62,7 @@ const Transactions: React.FC = () => {
         
         setDesc('');
         setAmount('');
+        setInterest('');
         setJustification('');
         setIsAdding(false);
     };
@@ -141,9 +144,23 @@ const Transactions: React.FC = () => {
                                 <option value={CategoryType.NEED}>Essencial (50%)</option>
                                 <option value={CategoryType.WANT}>Desejos (30%)</option>
                                 <option value={CategoryType.SAVING}>Reserva/Invest (20%)</option>
+                                <option value={CategoryType.DEBT_INTEREST}>Dívida c/ Juros</option>
+                                <option value={CategoryType.DEBT_NO_INTEREST}>Dívida s/ Juros</option>
                                 <option value={CategoryType.INCOME}>Entrada (Renda)</option>
                             </select>
                         </div>
+                        {category === CategoryType.DEBT_INTEREST && (
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Valor dos Juros (MT)</label>
+                            <input 
+                                type="number"
+                                value={interest}
+                                onChange={e => setInterest(e.target.value)}
+                                placeholder="0,00"
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
+                        </div>
+                        )}
                         <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-4">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">O Porquê deste registro?</label>
                             <input 
@@ -200,9 +217,14 @@ const Transactions: React.FC = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="font-bold text-white mb-0.5">{t.description}</div>
-                                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                            <TagIcon className="w-2.5 h-2.5" />
-                                            {t.subcategory}
+                                        <div className="flex flex-col gap-1.5 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                            <div className="flex items-center gap-1.5 ">
+                                                <TagIcon className="w-2.5 h-2.5" />
+                                                {t.subcategory}
+                                            </div>
+                                            {t.interestAmount && t.category === CategoryType.DEBT_INTEREST && (
+                                                <div className="text-red-500">Juros: {t.interestAmount.toLocaleString()} MT</div>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">

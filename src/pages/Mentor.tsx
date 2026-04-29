@@ -60,7 +60,12 @@ const Mentor: React.FC = () => {
 
         try {
             const response = await getChatResponse(userInput, chatMessages, stats, transactions, wishlist);
-            setChatMessages(prev => [...prev, { role: 'model', text: response }]);
+            if (response.startsWith("ERRO_AUTH:")) {
+                setChatMessages(prev => [...prev, { role: 'model', text: "Minha chave de acesso expirou ou é inválida. Por segurança, vou limpar nosso histórico para uma nova tentativa Limpa." }]);
+                setTimeout(() => setChatMessages([]), 3000);
+            } else {
+                setChatMessages(prev => [...prev, { role: 'model', text: response }]);
+            }
         } catch (error) {
             console.error("Chat error:", error);
             setChatMessages(prev => [...prev, { role: 'model', text: "Opa, tive um problema aqui. Podes repetir?" }]);

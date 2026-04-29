@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, testConnection } from '../services/firebase';
-import { doc, getDoc, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, serverTimestamp, getDocs, setDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { Transaction, FixedExpense, BudgetStats, CategoryType, WishlistItem } from '../types';
+import { Transaction, FixedExpense, BudgetStats, CategoryType, WishlistItem, DailySnapshot } from '../types';
 
 interface FinancialContextType {
   fbUser: FirebaseUser | null;
@@ -25,6 +25,7 @@ interface FinancialContextType {
   deleteFixedExpense: (id: string) => Promise<void>;
   logout: () => Promise<void>;
   resetData: () => Promise<void>;
+  dailySnapshots: DailySnapshot[];
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -34,9 +35,29 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [dailySnapshots, setDailySnapshots] = useState<DailySnapshot[]>([]);
   const [baseIncome, setBaseIncome] = useState(0);
   const [payday, setPayday] = useState(1);
   const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const updateDailySnapshot = async (currentStats: BudgetStats) => {
+    if (!fbUser) return;
+    const today = new Date().toISOString().split('T')[0];
+    const snapshot: DailySnapshot = {
+        date: today,
+        balance: currentStats.totalIncome - currentStats.totalSpent,
+        expenses: currentStats.totalSpent,
+        savings: currentStats.savings
+    };
+    
+    // Save to Firestore
+    const path = `users/${fbUser.uid}/daily_snapshots/${today}`;
+    try {
+        await setDoc(doc(db, path), snapshot);
+    } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, path);
+    }
+  }
 
   const addTransaction = async (t: Omit<Transaction, 'id'>) => {
     if (!fbUser) return;
@@ -45,6 +66,7 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
       const docRef = collection(db, path);
       // @ts-ignore
       await addDoc(docRef, { ...t, createdAt: serverTimestamp() });
+      if (stats) await updateDailySnapshot(stats);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, path);
     }
@@ -153,12 +175,18 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
             setWishlist(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WishlistItem)));
         }, (err) => handleFirestoreError(err, OperationType.LIST, wPath));
         
+        const dsPath = `users/${user.uid}/daily_snapshots`;
+        onSnapshot(query(collection(db, dsPath), orderBy('date', 'asc')), (snapshot) => {
+            setDailySnapshots(snapshot.docs.map(doc => ({ ...doc.data() } as DailySnapshot)));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, dsPath));
+        
         setIsAuthReady(true);
       } else {
         setFbUser(null);
         setTransactions([]);
         setFixedExpenses([]);
         setWishlist([]);
+        setDailySnapshots([]);
         setIsAuthReady(true);
       }
     });
@@ -221,7 +249,8 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
       addFixedExpense,
       deleteFixedExpense,
       logout,
-      resetData
+      resetData,
+      dailySnapshots
     }}>
       {children}
     </FinancialContext.Provider>

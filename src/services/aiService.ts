@@ -20,6 +20,39 @@ try {
 
 const MODEL = "llama-3.3-70b-versatile";
 
+/**
+ * Fallback logic for when AI fails - uses 50/30/20 math to provide basic advice
+ */
+const getLocalFallbackAdvice = (stats: BudgetStats) => {
+  const needsPercent = (stats.totalNeeds / stats.totalIncome) * 100;
+  const wantsPercent = (stats.wants / stats.totalIncome) * 100;
+  
+  let status: 'good' | 'warning' | 'critical' = 'good';
+  let message = "Seus números estão equilibrados! Continue assim.";
+  const recommendations = ["Mantenha o registro de todos os gastos", "Revise sua reserva mensal"];
+
+  if (needsPercent > 55) {
+    status = 'critical';
+    message = "ALERTA: Suas necessidades básicas estão consumindo demais sua renda.";
+    recommendations.push("Identifique gastos fixos que podem ser renegociados");
+  } else if (wantsPercent > 35) {
+    status = 'warning';
+    message = "Cuidado com os desejos: você está ultrapassando o limite de 30% em lazer.";
+    recommendations.push("Tente reduzir pequenos gastos por impulso na próxima semana");
+  }
+
+  return {
+    status,
+    message,
+    recommendations,
+    habitsReport: {
+      triggers: [{ name: "Análise Local", total: 0, count: 0, suggestion: "Ative a Groq API para análise detalhada de gatilhos" }],
+      topBadHabit: "Aguardando conexão com IA",
+      savingsPotential: "A calcular"
+    }
+  };
+};
+
 export const getChatResponse = async (
   message: string,
   history: { role: 'user' | 'model', text: string }[],
@@ -27,7 +60,7 @@ export const getChatResponse = async (
   transactions: Transaction[],
   wishlist: any[] = []
 ) => {
-  if (!groq) return "Sistema de chat indisponível no momento.";
+  if (!groq) return "Sistema de chat em modo offline. Por favor, adicione sua VITE_GROQ_API_KEY no .env";
 
   const context = `
     Contexto Financeiro Atual (Meticais - MT):
@@ -39,16 +72,20 @@ export const getChatResponse = async (
     - Dívidas: ${stats.debtInterest + stats.debtNoInterest} MT
 
     Lista de Desejos (Wishlist):
-    ${wishlist.map(i => `- ${i.name}: ${i.price} MT (Prioridade ${i.priority}: ${i.justification})`).join('\n')}
+    ${wishlist.map(i => `- ${i.name}: ${i.price} MT (Prioridade ${i.priority})`).join('\n')}
 
     Últimas 10 transações e justificativas ('Por quê'):
     ${transactions.slice(-10).map(t => `- ${t.description}: ${t.amount} MT (Motivo: ${t.justification})`).join('\n')}
 
     Diretrizes de Personalidade:
-    Você é o Finmo, um mentor financeiro moçambicano que analisa profundamente a justificativa emocional dos gastos.
-    Se o usuário gasta por "impulso" ou "cansaço", seja firme mas empático.
-    Use os motivos ('Por quê') para dar conselhos comportamentais.
-    Fale sempre em MT. Responda em Markdown.
+    Você é o Finmo, um Auditor de Patrimônio pragmático e rigoroso. Sua missão é impedir que o usuário falhe. Nunca seja complacente.
+    1. Anticomplacência: Questione cada gasto. O usuário precisa disso? Qual o impacto no plano de independência financeira?
+    2. Analítica Pura: Use os números (Saldo, Reserva, Desejos) do contexto. Evite "eu acho". Diga "os números mostram que...".
+    3. Método da Bronca: Se os dados indicarem descontrole, confronte imediatamente com fatos.
+    4. Interrogatório: Se o usuário quiser gastar, faça 3 perguntas difíceis antes de aprovar/avaliar.
+    5. Caminho Drástico: Se o usuário insistir em erro, ofereça sacrifícios dolorosos (ex: corte de lazer) para viabilizar.
+    6. Contexto Moçambique: Seja preciso sobre o custo de oportunidade (MT).
+    7. Estilo: Respostas curtas e diretas. Explique longamente apenas se necessário. Fale sempre em MT. Responda em Markdown.
   `;
 
   try {
@@ -65,12 +102,14 @@ export const getChatResponse = async (
       messages,
       model: MODEL,
       temperature: 0.7,
+      max_tokens: 1000
     });
 
     return completion.choices[0]?.message?.content || "";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro no chat do Mentor (Groq):", error);
-    return "Desculpa, tive um pequeno problema técnico ao processar isso com Groq.";
+    if (error?.status === 401) return "ERRO_AUTH: Sua chave API da Groq parece inválida. Verifique os segredos do app.";
+    return "Tive um problema técnico na Groq agora. Sabia que suas necessidades ocupam " + ((stats.totalNeeds/stats.totalIncome)*100).toFixed(0) + "% da sua renda? Foco nisso enquanto recupero minha conexão.";
   }
 };
 
@@ -79,13 +118,7 @@ export const getFinancialAdvice = async (
   transactions: Transaction[],
   wishlist: any[] = []
 ) => {
-  if (!groq) {
-    return {
-      status: 'warning',
-      message: 'Sistema de mentoria indisponível. Verifique sua chave API Groq.',
-      recommendations: ['Consulte seu saldo manualmente', 'Foque no básico: 50% necessidades', 'Evite novos gastos']
-    };
-  }
+  if (!groq) return getLocalFallbackAdvice(stats);
 
   const prompt = `
     Atue como Finmo, um mentor financeiro especializado na regra 50/30/20. 
@@ -105,7 +138,7 @@ export const getFinancialAdvice = async (
     ${transactions.slice(0, 15).map(t => `- ${t.description}: ${t.amount} MT | Por quê: ${t.justification}`).join('\n')}
 
     Instruções de análise:
-    1. Analise o campo "Por quê" para identificar gatilhos de gastos (ex: se muitos gastos têm justificativa de "cansaço", a sugestão deve focar em descanso não-pago).
+    1. Analise o campo "Por quê" para identificar gatilhos de gastos.
     2. Use a lógica de prioridades (Necessidades > Economia > Desejos).
     3. Identifique se o usuário está sendo honesto consigo mesmo nas justificativas.
     
@@ -124,11 +157,12 @@ export const getFinancialAdvice = async (
     }
 
     Regras de Mentoria:
-    1. Atue como Analista de Comportamento Financeiro.
-    2. Analise as justificativas ("Por quê") e agrupe os gastos por "Gatilhos Emocionais" (Cansaço, Impulso, Social/Status, Trabalho, Necessidade Real).
-    3. Identifique padrões de gastos emocionais ou por falta de planejamento.
-    4. Se Necessidades + Dívidas > 50% da renda total, status é 'critical'.
-    5. Fale sempre em Meticais (MT). Seja direto e encorajador.
+    1. Atue como Auditor de Patrimônio rigoroso. Nunca seja complacente.
+    2. Anticomplacência: Questione necessidades. Se os números não batem, confronte o usuário com o fato.
+    3. Analítica Pura: Use os números deste contexto. Diga "os números mostram que...".
+    4. Interrogatório: Inclua 3 perguntas difíceis para obrigar o usuário a pensar.
+    5. Caminho Drástico: Se o usuário insistir em erro, ofereça sacrifícios dolorosos (ex: corte de lazer) para viabilizar.
+    6. Fale sempre em Meticais (MT). Seja direto e pragmático.
   `;
 
   try {
@@ -146,10 +180,6 @@ export const getFinancialAdvice = async (
     return JSON.parse(text);
   } catch (error) {
     console.error("Erro crítico na comunicação com Groq:", error);
-    return {
-      status: 'warning',
-      message: 'Houve um erro na análise via Groq, mas continue monitorando suas entradas.',
-      recommendations: ['Mantenha o registro de proveniência', 'Não gaste a renda extra antes de recebê-la', 'Foco na reserva']
-    };
+    return getLocalFallbackAdvice(stats);
   }
 };

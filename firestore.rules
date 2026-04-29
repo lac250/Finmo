@@ -100,6 +100,10 @@ service cloud.firestore {
         allow create, update: if isOwner(userId) && isValidWishlistItem(incoming());
         allow delete: if isOwner(userId);
       }
+
+      match /daily_snapshots/{snapshotId} {
+        allow list, get: if isOwner(userId);
+      }
     }
   }
 }

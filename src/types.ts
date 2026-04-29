@@ -1,4 +1,11 @@
 
+export interface DailySnapshot {
+  date: string; // AAAA-MM-DD
+  balance: number;
+  expenses: number;
+  savings: number;
+}
+
 export enum CategoryType {
   NEED = 'NEED',      // 50%
   WANT = 'WANT',      // 30%
