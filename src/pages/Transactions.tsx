@@ -9,8 +9,10 @@ import {
   Trash2Icon, 
   FilterIcon,
   TagIcon,
-  CalendarIcon
+  CalendarIcon,
+  AlertTriangleIcon
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -23,20 +25,34 @@ const Transactions: React.FC = () => {
     // Form States
     const [desc, setDesc] = useState('');
     const [amount, setAmount] = useState('');
+    const [justification, setJustification] = useState('');
     const [category, setCategory] = useState<CategoryType>(CategoryType.NEED);
     const [subcategory, setSubcategory] = useState('');
+    const [immediateFeedback, setImmediateFeedback] = useState<string | null>(null);
 
     const [fixedDesc, setFixedDesc] = useState('');
     const [fixedAmount, setFixedAmount] = useState('');
+    const [fixedJustification, setFixedJustification] = useState('');
     const [fixedCategory, setFixedCategory] = useState<FixedExpense['category']>(CategoryType.NEED);
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!desc || !amount) return;
+        if (!desc || !amount || !justification) return;
+
+        // Immediate Behavioral Insight Logic
+        const keyword = "tempo";
+        if (justification.toLowerCase().includes(keyword)) {
+            const count = transactions.filter(t => t.justification.toLowerCase().includes(keyword)).length + 1;
+            if (count >= 2) {
+                setImmediateFeedback(`Atenção: Este é o seu ${count}º gasto motivado por 'falta de tempo' recentemente. Isso já soma uma quantia considerável que poderia ir para sua Reserva.`);
+                setTimeout(() => setImmediateFeedback(null), 8000);
+            }
+        }
         
         await addTransaction({
             description: desc,
             amount: Number(amount),
+            justification,
             category,
             subcategory: subcategory || 'Geral',
             date: new Date().toISOString()
@@ -44,21 +60,24 @@ const Transactions: React.FC = () => {
         
         setDesc('');
         setAmount('');
+        setJustification('');
         setIsAdding(false);
     };
 
     const handleAddFixed = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!fixedDesc || !fixedAmount) return;
+        if (!fixedDesc || !fixedAmount || !fixedJustification) return;
         
         await addFixedExpense({
             description: fixedDesc,
             amount: Number(fixedAmount),
+            justification: fixedJustification,
             category: fixedCategory
         });
         
         setFixedDesc('');
         setFixedAmount('');
+        setFixedJustification('');
         setIsAddingFixed(false);
     };
 
@@ -82,6 +101,16 @@ const Transactions: React.FC = () => {
 
             {isAdding && (
                 <div className="glass p-8 rounded-[2.5rem] border-emerald-500/20 animate-in slide-in-from-top-4 duration-300">
+                    {immediateFeedback && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3"
+                        >
+                            <AlertTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-200 font-medium leading-relaxed">{immediateFeedback}</p>
+                        </motion.div>
+                    )}
                     <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Descrição</label>
@@ -115,7 +144,16 @@ const Transactions: React.FC = () => {
                                 <option value={CategoryType.INCOME}>Entrada (Renda)</option>
                             </select>
                         </div>
-                        <div className="flex items-end">
+                        <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-4">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">O Porquê deste registro?</label>
+                            <input 
+                                value={justification}
+                                onChange={e => setJustification(e.target.value)}
+                                placeholder="Ex: Comi fora pois não tive tempo de cozinhar ou Ganhei bônus por meta atingida"
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
+                        </div>
+                        <div className="flex items-end lg:col-start-4">
                             <button 
                                 type="submit"
                                 className="w-full bg-emerald-500 py-4 text-slate-950 font-black rounded-2xl hover:bg-emerald-400 transition-colors shadow-lg"
@@ -252,6 +290,15 @@ const Transactions: React.FC = () => {
                                 <option value={CategoryType.WANT}>Desejos (30%)</option>
                                 <option value={CategoryType.DEBT_NO_INTEREST}>Dívida</option>
                             </select>
+                        </div>
+                        <div className="space-y-2 col-span-1 md:col-span-3">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">O Porquê desta despesa fixa?</label>
+                            <input 
+                                value={fixedJustification}
+                                onChange={e => setFixedJustification(e.target.value)}
+                                placeholder="Ex: Essencial para lazer em família ou Ferramenta de trabalho"
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-red-500/50 outline-none transition-colors"
+                            />
                         </div>
                         <button 
                             type="submit"

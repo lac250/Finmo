@@ -18,9 +18,10 @@
         "id": { "type": "string" },
         "description": { "type": "string" },
         "amount": { "type": "number" },
+        "justification": { "type": "string" },
         "category": { "type": "string", "enum": ["NEED", "WANT", "DEBT_NO_INTEREST"] }
       },
-      "required": ["id", "description", "amount", "category"]
+      "required": ["id", "description", "amount", "justification", "category"]
     },
     "Transaction": {
       "title": "Transaction",
@@ -31,12 +32,27 @@
         "description": { "type": "string" },
         "amount": { "type": "number" },
         "interestAmount": { "type": "number" },
+        "justification": { "type": "string" },
         "category": { "type": "string" },
         "subcategory": { "type": "string" },
         "date": { "type": "string" },
         "dueDate": { "type": "string" }
       },
-      "required": ["id", "description", "amount", "category", "subcategory", "date"]
+      "required": ["id", "description", "amount", "justification", "category", "subcategory", "date"]
+    },
+    "WishlistItem": {
+      "title": "Wishlist Item",
+      "description": "Item user wants to buy in the future",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "priority": { "type": "number" },
+        "justification": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "justification", "priority", "createdAt"]
     }
   },
   "firestore": {
@@ -51,6 +67,10 @@
     "/users/{userId}/transactions/{transactionId}": {
       "schema": "Transaction",
       "description": "User's individual transactions"
+    },
+    "/users/{userId}/wishlist/{wishlistId}": {
+      "schema": "WishlistItem",
+      "description": "User's wishlist items"
     }
   }
 }

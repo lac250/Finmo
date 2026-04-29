@@ -1,9 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, CategoryType, BudgetStats } from "../types";
 
-// VITE_ prefix is required for client-side usage in Vite (Vercel)
 // GEMINI_API_KEY is standard in AI Studio
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 
 let ai: GoogleGenAI | null = null;
 
@@ -41,20 +40,31 @@ export const getFinancialAdvice = async (
     Gastos em Desejos (Meta 30% de ${stats.totalIncome}): ${stats.wants} MT
     Investimentos/Reserva (Meta 20% de ${stats.totalIncome}): ${stats.savings} MT
     
-    Lista de movimentações recentes:
-    ${transactions.slice(0, 15).map(t => `- ${t.category === 'INCOME' ? 'ENTRADA' : 'SAÍDA'}: ${t.description} - ${t.amount} MT (${t.subcategory})`).join('\n')}
+    Lista de movimentações recentes (com justificativas do usuário):
+    ${transactions.slice(0, 15).map(t => `- ${t.category === 'INCOME' ? 'ENTRADA' : 'SAÍDA'}: ${t.description} - ${t.amount} MT (${t.subcategory}) | Por quê: ${t.justification}`).join('\n')}
 
     Sua resposta deve ser em JSON seguindo este esquema:
     {
       "status": "good" | "warning" | "critical",
       "message": "Uma mensagem curta, pragmática e incentivadora.",
-      "recommendations": ["Recomendação 1", "Recomendação 2", "Recomendação 3"]
+      "recommendations": ["Recomendação 1", "Recomendação 2", "Recomendação 3"],
+      "habitsReport": {
+        "triggers": [
+          { "name": "Cansaço" | "Impulso" | "Social/Status" | "Trabalho" | "Necessidade Real", "total": 1500, "count": 3, "suggestion": "..." }
+        ],
+        "topBadHabit": "descrição do hábito repetitivo identificado",
+        "savingsPotential": "valor estimado que seria economizado se o hábito fosse cortado em MT"
+      }
     }
 
     Regras de Mentoria:
-    1. Se houver Renda Variável expressiva, sugira alocar 100% dela para a Reserva de Emergência ou Dívidas se o usuário estiver fora das metas.
-    2. Se Necessidades + Dívidas > 50% da renda total, status é 'critical'.
-    3. Fale sempre em Meticais (MT). Seja direto e encorajador.
+    1. Atue como Analista de Comportamento Financeiro.
+    2. Analise as justificativas ("Por quê") e agrupe os gastos por "Gatilhos Emocionais" (Cansaço, Impulso, Social/Status, Trabalho, Necessidade Real).
+    3. Identifique padrões de gastos emocionais ou por falta de planejamento.
+    4. Se houver Renda Variável expressiva, sugira alocar 100% dela para a Reserva de Emergência ou Dívidas se o usuário estiver fora das metas.
+    5. Se Necessidades + Dívidas > 50% da renda total, status é 'critical'.
+    6. Fale sempre em Meticais (MT). Seja direto e encorajador.
+    7. Dê conselhos comportamentais baseados no 'Por quê' para eliminar o desperdício.
   `;
 
   try {
@@ -63,12 +73,55 @@ export const getFinancialAdvice = async (
       contents: prompt,
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["status", "message", "recommendations", "habitsReport"],
+          properties: {
+            status: { type: Type.STRING },
+            message: { type: Type.STRING },
+            recommendations: { type: Type.ARRAY, items: { type: Type.STRING } },
+            habitsReport: {
+              type: Type.OBJECT,
+              required: ["triggers", "topBadHabit", "savingsPotential"],
+              properties: {
+                triggers: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    required: ["name", "total", "count", "suggestion"],
+                    properties: {
+                      name: { type: Type.STRING },
+                      total: { type: Type.NUMBER },
+                      count: { type: Type.NUMBER },
+                      suggestion: { type: Type.STRING }
+                    }
+                  }
+                },
+                topBadHabit: { type: Type.STRING },
+                savingsPotential: { type: Type.STRING }
+              }
+            }
+          }
+        }
       },
     });
 
-    return JSON.parse(response.text || '{}');
+    const text = response.text || '{}';
+    // Remove potential markdown code blocks if they exist despite responseMimeType
+    const cleanedText = text.replace(/```json\n?|```/g, '').trim();
+    
+    try {
+      return JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.warn("Retrying parse with regex extraction...");
+      const match = cleanedText.match(/\{[\s\S]*\}/);
+      if (match) {
+        return JSON.parse(match[0]);
+      }
+      throw parseError;
+    }
   } catch (error) {
-    console.error("Erro ao obter conselho da IA:", error);
+    console.error("Erro crítico na comunicação com Gemini:", error);
     return {
       status: 'warning',
       message: 'Houve um erro na análise, mas continue monitorando suas entradas variáveis para acelerar sua independência.',

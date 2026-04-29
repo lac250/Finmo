@@ -19,6 +19,7 @@ export interface WishlistItem {
   name: string;
   price: number;
   priority: Priority;
+  justification: string;
   createdAt: string;
 }
 
@@ -26,6 +27,7 @@ export interface FixedExpense {
   id: string;
   description: string;
   amount: number;
+  justification: string;
   category: CategoryType.NEED | CategoryType.WANT | CategoryType.DEBT_NO_INTEREST;
 }
 
@@ -34,6 +36,7 @@ export interface Transaction {
   description: string;
   amount: number;
   interestAmount?: number; // New field for tracking interest costs in debts
+  justification: string;
   category: CategoryType;
   subcategory: string;
   date: string;
@@ -60,4 +63,14 @@ export interface AIAdvice {
   status: 'good' | 'warning' | 'critical';
   message: string;
   recommendations: string[];
+  habitsReport?: {
+    triggers: {
+      name: string;
+      total: number;
+      count: number;
+      suggestion: string;
+    }[];
+    topBadHabit: string;
+    savingsPotential: string;
+  };
 }

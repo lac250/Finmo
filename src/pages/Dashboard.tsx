@@ -7,7 +7,8 @@ import {
   ZapIcon, 
   BrainCircuitIcon,
   ChevronRightIcon,
-  PlusIcon
+  PlusIcon,
+  AlertTriangleIcon
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { CategoryType } from '../types';
@@ -49,8 +50,10 @@ const Dashboard: React.FC = () => {
     const { stats, transactions, addTransaction } = useFinancial();
     const [quickDesc, setQuickDesc] = useState('');
     const [quickAmount, setQuickAmount] = useState('');
+    const [quickJustification, setQuickJustification] = useState('');
     const [quickCat, setQuickCat] = useState<CategoryType>(CategoryType.NEED);
     const [mentorTip, setMentorTip] = useState<{ message: string } | null>(null);
+    const [immediateFeedback, setImmediateFeedback] = useState<string | null>(null);
 
     useEffect(() => {
         if (stats) {
@@ -61,16 +64,29 @@ const Dashboard: React.FC = () => {
     if (!stats) return null;
 
     const handleQuickAdd = async () => {
-        if (!quickDesc || !quickAmount) return;
+        if (!quickDesc || !quickAmount || !quickJustification) return;
+        
+        // Immediate Behavioral Insight Logic
+        const keyword = "tempo";
+        if (quickJustification.toLowerCase().includes(keyword)) {
+            const count = transactions.filter(t => t.justification.toLowerCase().includes(keyword)).length + 1;
+            if (count >= 2) {
+                setImmediateFeedback(`Atenção: Este é o seu ${count}º gasto motivado por 'falta de tempo' recentemente. Isso já soma uma quantia considerável que poderia ir para sua Reserva.`);
+                setTimeout(() => setImmediateFeedback(null), 8000);
+            }
+        }
+
         await addTransaction({
             description: quickDesc,
             amount: Number(quickAmount),
+            justification: quickJustification,
             category: quickCat,
             subcategory: 'Geral',
             date: new Date().toISOString()
         });
         setQuickDesc('');
         setQuickAmount('');
+        setQuickJustification('');
     };
 
     // Calculate chart data from transactions
@@ -254,6 +270,17 @@ const Dashboard: React.FC = () => {
                             </div>
                             <h2 className="text-sm font-black text-white uppercase tracking-widest">Novo Registro</h2>
                         </div>
+
+                        {immediateFeedback && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3"
+                            >
+                                <AlertTriangleIcon className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                                <p className="text-[10px] text-amber-200 font-medium leading-relaxed">{immediateFeedback}</p>
+                            </motion.div>
+                        )}
                         
                         <div className="space-y-4">
                             <input 
@@ -272,6 +299,12 @@ const Dashboard: React.FC = () => {
                                 />
                                 <ZapIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
                             </div>
+                            <input 
+                                value={quickJustification}
+                                onChange={e => setQuickJustification(e.target.value)}
+                                placeholder="O Porquê deste gasto? (Ex: Comi fora pois não tive tempo de cozinhar)"
+                                className="w-full bg-slate-950/50 border border-white/5 rounded-2xl px-4 py-3 text-sm text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
                             <select 
                                 value={quickCat}
                                 onChange={e => setQuickCat(e.target.value as CategoryType)}

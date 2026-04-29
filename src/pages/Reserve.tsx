@@ -8,14 +8,16 @@ const Reserve: React.FC = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [desc, setDesc] = useState('');
     const [amount, setAmount] = useState('');
+    const [justification, setJustification] = useState('');
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!desc || !amount) return;
+        if (!desc || !amount || !justification) return;
         
         await addTransaction({
             description: desc,
             amount: Number(amount),
+            justification,
             category: CategoryType.SAVING,
             subcategory: 'Aporte Extra',
             date: new Date().toISOString()
@@ -23,6 +25,7 @@ const Reserve: React.FC = () => {
         
         setDesc('');
         setAmount('');
+        setJustification('');
         setIsAdding(false);
     };
     
@@ -69,7 +72,16 @@ const Reserve: React.FC = () => {
                                 className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
                             />
                         </div>
-                        <div className="flex items-end">
+                        <div className="space-y-2 md:col-span-3">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">O Porquê deste aporte extra?</label>
+                            <input 
+                                value={justification}
+                                onChange={e => setJustification(e.target.value)}
+                                placeholder="Ex: Renda extra de consultoria ou Economia de gastos supérfluos"
+                                className="w-full bg-slate-950 border border-white/5 rounded-2xl px-4 py-4 text-white focus:border-emerald-500/50 outline-none transition-colors"
+                            />
+                        </div>
+                        <div className="flex items-end md:col-start-3">
                             <button 
                                 type="submit"
                                 className="w-full bg-emerald-500 py-4 text-slate-950 font-black rounded-2xl hover:bg-emerald-400 transition-colors shadow-lg"

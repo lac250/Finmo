@@ -41,16 +41,18 @@ service cloud.firestore {
     }
 
     function isValidFixedExpense(data) {
-      return data.keys().hasAll(['description', 'amount', 'category']) &&
+      return data.keys().hasAll(['description', 'amount', 'category', 'justification']) &&
              data.description is string && data.description.size() <= 200 &&
              data.amount is number &&
+             data.justification is string && data.justification.size() <= 1000 &&
              data.category in ['NEED', 'WANT', 'SAVING', 'INCOME'];
     }
 
     function isValidTransaction(data) {
-      return data.keys().hasAll(['description', 'amount', 'category', 'subcategory', 'date']) &&
+      return data.keys().hasAll(['description', 'amount', 'category', 'subcategory', 'date', 'justification']) &&
              data.description is string && data.description.size() <= 200 &&
              data.amount is number &&
+             data.justification is string && data.justification.size() <= 1000 &&
              data.category is string &&
              data.subcategory is string &&
              data.date is string &&
@@ -61,9 +63,10 @@ service cloud.firestore {
     }
 
     function isValidWishlistItem(data) {
-      return data.keys().hasAll(['name', 'price', 'priority']) &&
+      return data.keys().hasAll(['name', 'price', 'priority', 'justification']) &&
              data.name is string && data.name.size() <= 200 &&
              data.price is number &&
+             data.justification is string && data.justification.size() <= 1000 &&
              data.priority in [1, 2, 3];
     }
 
