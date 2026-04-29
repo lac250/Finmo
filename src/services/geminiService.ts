@@ -16,15 +16,64 @@ try {
   console.error("AI Initialization failed:", e);
 }
 
+export const getChatResponse = async (
+  message: string,
+  history: { role: 'user' | 'model', text: string }[],
+  stats: BudgetStats,
+  transactions: Transaction[]
+) => {
+  if (!ai) return "Sistema de chat indisponível no momento.";
+
+  const context = `
+    Contexto Financeiro Atual (Meticais - MT):
+    - Salário Total: ${stats.totalIncome} MT
+    - Economia/Reserva Atual: ${stats.savings} MT
+    - Total Gasto: ${stats.totalSpent} MT
+    - Necessidades: ${stats.totalNeeds + stats.debtInterest + stats.debtNoInterest} MT
+    - Desejos (Wants): ${stats.wants} MT
+    - Dívidas: ${stats.debtInterest + stats.debtNoInterest} MT
+
+    Últimas 10 transações e justificativas:
+    ${transactions.slice(-10).map(t => `- ${t.description}: ${t.amount} MT (${t.justification})`).join('\n')}
+
+    Diretrizes de Personalidade:
+    Você é o Finmo, um mentor financeiro moçambicano experiente, pragmático e atencioso.
+    Sua missão é ajudar o usuário a tomar decisões mais inteligentes e comportamentalmente saudáveis.
+    Use expressões moçambicanas de forma natural. Fale sempre em MT.
+    Responda em Markdown.
+  `;
+
+  try {
+    const contents = [
+      { role: 'user', parts: [{ text: `Olá Finmo, aqui está meu contexto financeiro atual: ${context}` }] },
+      { role: 'model', parts: [{ text: "Tudo bem! Recebi seus dados. Sou o Finmo, seu assessor financeiro. Como posso te ajudar hoje?" }] },
+      ...history.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      })),
+      { role: 'user', parts: [{ text: message }] }
+    ];
+
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: contents
+    });
+
+    return result.text;
+  } catch (error) {
+    console.error("Erro no chat do Mentor:", error);
+    return "Desculpa, tive um pequeno problema técnico ao processar isso.";
+  }
+};
+
 export const getFinancialAdvice = async (
   stats: BudgetStats,
-  transactions: Transaction[],
-  totalIncome: number
+  transactions: Transaction[]
 ) => {
   if (!ai) {
     return {
       status: 'warning',
-      message: 'Sistema de mentoria indisponível. Verifique sua chave API (VITE_GEMINI_API_KEY).',
+      message: 'Sistema de mentoria indisponível. Verifique sua chave API.',
       recommendations: ['Consulte seu saldo manualmente', 'Foque no básico: 50% necessidades', 'Evite novos gastos']
     };
   }

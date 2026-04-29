@@ -57,7 +57,7 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         if (stats) {
-            getFinancialAdvice(stats, transactions, stats.totalIncome).then(setMentorTip);
+            getFinancialAdvice(stats, transactions).then(setMentorTip);
         }
     }, [stats, transactions]);
 
