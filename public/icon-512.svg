@@ -1,4 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" fill="#10b981" rx="128" />
-  <text x="256" y="278" font-family="sans-serif" font-size="128" font-weight="bold" fill="#020617" text-anchor="middle" dominant-baseline="middle">F</text>
+  <defs>
+    <linearGradient id="strapGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fddb22" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <linearGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Back Flap -->
+  <path d="M 40,160 C 40,90 70,60 130,55 L 350,50 C 410,45 430,75 430,130 L 430,200 Z" fill="#2d9466" />
+  
+  <!-- Main Body -->
+  <rect x="40" y="140" width="432" height="320" rx="64" fill="#3ec587" />
+  
+  <!-- Strap -->
+  <rect x="280" y="220" width="200" height="110" rx="55" fill="url(#strapGradient)" />
+  
+  <!-- Button -->
+  <circle cx="340" cy="275" r="22" fill="url(#buttonGradient)" />
 </svg>
