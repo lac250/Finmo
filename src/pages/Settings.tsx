@@ -1,12 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinancial } from '../contexts/FinancialContext';
-import { Settings2Icon, SaveIcon, UserIcon, CreditCardIcon, BellIcon, LogOutIcon, Trash2Icon } from 'lucide-react';
+import { Settings2Icon, SaveIcon, UserIcon, CreditCardIcon, BellIcon, LogOutIcon, Trash2Icon, DownloadIcon } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../services/firebase';
 
 const Settings: React.FC = () => {
     const { fbUser, baseIncome, setBaseIncome, payday, setPayday, logout, resetData } = useFinancial();
     const [showConfirm, setShowConfirm] = useState(false);
+    const [isInstallable, setIsInstallable] = useState(false);
+
+    useEffect(() => {
+        const handler = () => setIsInstallable(true);
+        if ((window as any).deferredPrompt) setIsInstallable(true);
+        window.addEventListener('app-installable', handler);
+        return () => window.removeEventListener('app-installable', handler);
+    }, []);
+
+    const handleInstall = async () => {
+        const promptEvent = (window as any).deferredPrompt;
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        const { outcome } = await promptEvent.userChoice;
+        if (outcome === 'accepted') {
+            (window as any).deferredPrompt = null;
+            setIsInstallable(false);
+        }
+    };
+
     
     const handleSave = async () => {
         if (!fbUser) return;
@@ -76,6 +96,11 @@ const Settings: React.FC = () => {
                         <button onClick={logout} className="w-full flex items-center gap-3 p-3 rounded-xl text-red-500 hover:bg-red-500/10 text-xs font-black uppercase tracking-widest transition-colors">
                             <LogOutIcon className="w-4 h-4" /> Sair
                         </button>
+                        {isInstallable && (
+                            <button onClick={handleInstall} className="w-full mt-4 flex items-center justify-center gap-3 p-4 rounded-xl bg-emerald-500 text-slate-950 hover:bg-emerald-400 text-xs font-black uppercase tracking-widest transition-colors shadow-lg shadow-emerald-500/20">
+                                <DownloadIcon className="w-5 h-5" /> Instalar Aplicativo
+                            </button>
+                        )}
                     </div>
                 </div>
 
