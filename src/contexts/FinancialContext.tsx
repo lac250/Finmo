@@ -40,6 +40,16 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
   const [payday, setPayday] = useState(1);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  const cleanForFirestore = (obj: Record<string, any>) => {
+    const clean: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        clean[key] = value;
+      }
+    }
+    return clean;
+  };
+
   const updateDailySnapshot = async (currentStats: BudgetStats) => {
     if (!fbUser) return;
     const today = new Date().toISOString().split('T')[0];
@@ -53,7 +63,7 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     // Save to Firestore
     const path = `users/${fbUser.uid}/daily_snapshots/${today}`;
     try {
-        await setDoc(doc(db, path), snapshot);
+        await setDoc(doc(db, path), cleanForFirestore(snapshot));
     } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, path);
     }
@@ -64,8 +74,8 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     const path = `users/${fbUser.uid}/transactions`;
     try {
       const docRef = collection(db, path);
-      // @ts-ignore
-      await addDoc(docRef, { ...t, createdAt: serverTimestamp() });
+      const dataToSave = cleanForFirestore({ ...t, createdAt: serverTimestamp() });
+      await addDoc(docRef, dataToSave);
       if (stats) await updateDailySnapshot(stats);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, path);
@@ -87,7 +97,8 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     const path = `users/${fbUser.uid}/wishlist`;
     try {
       const docRef = collection(db, path);
-      await addDoc(docRef, { ...t, createdAt: serverTimestamp() });
+      const dataToSave = cleanForFirestore({ ...t, createdAt: serverTimestamp() });
+      await addDoc(docRef, dataToSave);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, path);
     }
@@ -108,7 +119,8 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     const path = `users/${fbUser.uid}/fixedExpenses`;
     try {
       const docRef = collection(db, path);
-      await addDoc(docRef, { ...t, createdAt: serverTimestamp() });
+      const dataToSave = cleanForFirestore({ ...t, createdAt: serverTimestamp() });
+      await addDoc(docRef, dataToSave);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, path);
     }

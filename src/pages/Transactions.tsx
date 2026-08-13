@@ -50,15 +50,20 @@ const Transactions: React.FC = () => {
             }
         }
         
-        await addTransaction({
+        const txData: Omit<Transaction, 'id'> = {
             description: desc,
             amount: Number(amount),
-            interestAmount: category === CategoryType.DEBT_INTEREST ? Number(interest) : undefined,
             justification,
             category,
             subcategory: subcategory || 'Geral',
             date: new Date().toISOString()
-        });
+        };
+
+        if (category === CategoryType.DEBT_INTEREST && interest) {
+            txData.interestAmount = Number(interest);
+        }
+
+        await addTransaction(txData);
         
         setDesc('');
         setAmount('');
