@@ -8,9 +8,61 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link rel="apple-touch-icon" href="/icon-192.svg">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#10b981">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script>
+      (function() {
+        // Insulate against browser extensions attempting window.fetch reassignment
+        try {
+          var _origFetch = window.fetch;
+          var fetchProp = {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              return _origFetch;
+            },
+            set: function(val) {
+              _origFetch = val;
+            }
+          };
+          Object.defineProperty(window, 'fetch', fetchProp);
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            try {
+              Object.defineProperty(Window.prototype, 'fetch', fetchProp);
+            } catch (e) {}
+          }
+        } catch (e) {}
+
+        // Suppress browser extension injected script errors
+        window.addEventListener('error', function(e) {
+          var file = (e && e.filename) ? e.filename : '';
+          var msg = (e && e.message) ? e.message : '';
+          if (
+            file.indexOf('chrome-extension://') !== -1 ||
+            file.indexOf('moz-extension://') !== -1 ||
+            file.indexOf('safari-extension://') !== -1 ||
+            (msg.indexOf('fetch') !== -1 && msg.indexOf('getter') !== -1)
+          ) {
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            if (e.preventDefault) e.preventDefault();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = (e && e.reason) ? String(e.reason) : '';
+          if (
+            reason.indexOf('chrome-extension://') !== -1 ||
+            reason.indexOf('moz-extension://') !== -1 ||
+            (reason.indexOf('fetch') !== -1 && reason.indexOf('getter') !== -1)
+          ) {
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+            if (e.preventDefault) e.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased">
     <div id="root"></div>

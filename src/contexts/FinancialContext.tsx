@@ -1,9 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, testConnection } from '../services/firebase';
 import { doc, getDoc, collection, onSnapshot, query, orderBy, addDoc, deleteDoc, serverTimestamp, getDocs, setDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
 import { Transaction, FixedExpense, BudgetStats, CategoryType, WishlistItem, DailySnapshot } from '../types';
+import { 
+  getOfflineQueue, 
+  enqueueOfflineAction, 
+  clearOfflineQueue, 
+  saveCachedTransactions, 
+  getCachedTransactions 
+} from '../services/offlineSyncService';
 
 interface FinancialContextType {
   fbUser: FirebaseUser | null;
@@ -26,6 +32,7 @@ interface FinancialContextType {
   logout: () => Promise<void>;
   resetData: () => Promise<void>;
   dailySnapshots: DailySnapshot[];
+  syncOfflineQueue: () => Promise<void>;
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined);
@@ -69,7 +76,44 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const syncOfflineQueue = async () => {
+    if (!fbUser || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    for (const action of queue) {
+      try {
+        if (action.type === 'ADD_TRANSACTION') {
+          const path = `users/${fbUser.uid}/transactions`;
+          const dataToSave = cleanForFirestore({ ...action.payload, createdAt: serverTimestamp() });
+          await addDoc(collection(db, path), dataToSave);
+        } else if (action.type === 'COMPLETE_CHALLENGE_SLOT' || action.type === 'CREATE_CHALLENGE') {
+          const path = `users/${fbUser.uid}/savings_challenge/main`;
+          await setDoc(doc(db, path), {
+            ...action.payload,
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch (e) {
+        console.error('Error syncing offline action:', action, e);
+      }
+    }
+
+    clearOfflineQueue();
+  };
+
   const addTransaction = async (t: Omit<Transaction, 'id'>) => {
+    // If offline, apply Optimistic UI and enqueue action
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const tempId = `offline-${Date.now()}`;
+      const localT: Transaction = { id: tempId, ...t };
+      const updated = [localT, ...transactions];
+      setTransactions(updated);
+      saveCachedTransactions(updated);
+      enqueueOfflineAction('ADD_TRANSACTION', t);
+      return;
+    }
+
     if (!fbUser) return;
     const path = `users/${fbUser.uid}/transactions`;
     try {
@@ -78,7 +122,13 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
       await addDoc(docRef, dataToSave);
       if (stats) await updateDailySnapshot(stats);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, path);
+      console.warn('Firestore write failed, enqueuing offline action:', err);
+      const tempId = `offline-${Date.now()}`;
+      const localT: Transaction = { id: tempId, ...t };
+      const updated = [localT, ...transactions];
+      setTransactions(updated);
+      saveCachedTransactions(updated);
+      enqueueOfflineAction('ADD_TRANSACTION', t);
     }
   };
 
@@ -171,11 +221,25 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
             handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
         }
         
+        // Initialize from cache immediately for offline capability
+        const cachedT = getCachedTransactions();
+        if (cachedT && cachedT.length > 0) {
+          setTransactions(cachedT);
+        }
+
         const tPath = `users/${user.uid}/transactions`;
         const tQuery = query(collection(db, tPath), orderBy('date', 'desc'));
         const unsubT = onSnapshot(tQuery, (snapshot) => {
-          setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
-        }, (err) => handleFirestoreError(err, OperationType.LIST, tPath));
+          const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+          setTransactions(list);
+          saveCachedTransactions(list);
+        }, (err) => {
+          handleFirestoreError(err, OperationType.LIST, tPath);
+          const cached = getCachedTransactions();
+          if (cached && cached.length > 0) {
+            setTransactions(cached);
+          }
+        });
         
         const fPath = `users/${user.uid}/fixedExpenses`;
         onSnapshot(collection(db, fPath), (snapshot) => {
@@ -202,7 +266,16 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthReady(true);
       }
     });
-    return () => unsubscribe();
+
+    const handleOnline = () => {
+      syncOfflineQueue();
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   const stats = useMemo(() => {
@@ -265,7 +338,8 @@ export const FinancialProvider = ({ children }: { children: ReactNode }) => {
       deleteFixedExpense,
       logout,
       resetData,
-      dailySnapshots
+      dailySnapshots,
+      syncOfflineQueue
     }}>
       {children}
     </FinancialContext.Provider>

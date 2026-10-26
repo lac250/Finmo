@@ -94,7 +94,7 @@ const Reserve: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="glass p-8 rounded-[2.5rem] border-emerald-500/20 bg-emerald-500/5 space-y-6">
+                <div id="tour-reserve-card" className="glass p-8 rounded-[2.5rem] border-emerald-500/20 bg-emerald-500/5 space-y-6">
                     <div className="flex justify-between items-center">
                         <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center">
                             <ShieldCheckIcon className="w-6 h-6 text-slate-950" />
@@ -144,7 +144,7 @@ const Reserve: React.FC = () => {
                 </div>
             </div>
 
-            <div className="glass rounded-[2.5rem] border-white/5 overflow-hidden">
+            <div id="tour-reserve-history" className="glass rounded-[2.5rem] border-white/5 overflow-hidden">
                 <div className="p-6 border-b border-white/5">
                     <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest">Histórico de Aportes</h2>
                 </div>

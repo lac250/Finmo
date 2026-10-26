@@ -9,13 +9,20 @@ import {
   LogOutIcon,
   CheckCircle2Icon,
   WalletIcon,
-  GiftIcon
+  GiftIcon,
+  TrophyIcon,
+  HelpCircleIcon
 } from 'lucide-react';
 import { useFinancial } from '../contexts/FinancialContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
+import { OnboardingTour } from '../components/OnboardingTour';
+import { NotificationDropdown } from '../components/NotificationDropdown';
+import { OfflineIndicator } from '../components/OfflineIndicator';
 import { auth } from '../services/firebase';
 
 const RootLayout: React.FC = () => {
   const { fbUser } = useFinancial();
+  const { triggerManualTour, currentTabTour } = useOnboarding();
 
   const handleLogout = () => {
     auth.signOut();
@@ -24,14 +31,18 @@ const RootLayout: React.FC = () => {
   const navItems = [
     { to: '/', icon: LayoutDashboardIcon, label: 'Dashboard' },
     { to: '/transactions', icon: ArrowLeftRightIcon, label: 'Transações' },
-    { to: '/mentor', icon: BrainCircuitIcon, label: 'Mentor IA' },
+    { to: '/mentor', icon: BrainCircuitIcon, label: 'Mentor IA', tourId: 'tour-nav-mentor' },
     { to: '/reserve', icon: ShieldCheckIcon, label: 'Reserva' },
-    { to: '/wishlist', icon: GiftIcon, label: 'Lista de Desejos' },
+    { to: '/challenge', icon: TrophyIcon, label: 'Desafio 60D', tourId: 'tour-nav-challenge' },
+    { to: '/wishlist', icon: GiftIcon, label: 'Desejos' },
     { to: '/settings', icon: Settings2Icon, label: 'Ajustes' },
   ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans selection:bg-emerald-500/30">
+      {/* Interactive Onboarding Tour Modal & Spotlight */}
+      <OnboardingTour />
+
       {/* Sidebar (Desktop) */}
       <aside className="hidden lg:flex w-64 border-r border-white/5 flex-col h-screen sticky top-0 bg-slate-950/50 backdrop-blur-xl">
         <div className="p-8 flex items-center gap-3">
@@ -46,6 +57,7 @@ const RootLayout: React.FC = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              id={item.tourId}
               className={({ isActive }) => `
                 flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 group
                 ${isActive 
@@ -59,12 +71,24 @@ const RootLayout: React.FC = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-white/5 space-y-2">
+          {/* Smart Contextual Onboarding Trigger */}
+          <button
+            onClick={triggerManualTour}
+            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-bold group border border-white/5"
+            title={currentTabTour ? `Ver tour de ${currentTabTour.tabName}` : 'Tour pelo Sistema'}
+          >
+            <HelpCircleIcon className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform" />
+            <span className="text-sm">
+              {currentTabTour ? `Tour: ${currentTabTour.tabName}` : 'Tour pelo Sistema'}
+            </span>
+          </button>
+
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all font-bold group"
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all font-bold group"
           >
-            <LogOutIcon className="w-6 h-6" />
+            <LogOutIcon className="w-5 h-5" />
             <span className="text-sm">Sair</span>
           </button>
         </div>
@@ -76,6 +100,7 @@ const RootLayout: React.FC = () => {
           <NavLink
             key={item.to}
             to={item.to}
+            id={item.tourId ? `${item.tourId}-mobile` : undefined}
             className={({ isActive }) => `
               p-2 rounded-xl transition-all 
               ${isActive ? 'text-emerald-500' : 'text-slate-600'}
@@ -88,17 +113,36 @@ const RootLayout: React.FC = () => {
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-slate-950/30 backdrop-blur-md sticky top-0 z-40">
+        <header className="h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-slate-950/30 backdrop-blur-md sticky top-0 z-40">
            <div className="flex flex-col">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Bem-vindo,</span>
               <span className="font-black text-white leading-none">{fbUser?.displayName || 'Investidor'}</span>
            </div>
            
-           <div className="flex items-center gap-6">
+           <div className="flex items-center gap-3 md:gap-5">
+              {/* Header Contextual Tour Button */}
+              <button
+                onClick={triggerManualTour}
+                className="flex items-center gap-2 px-3.5 py-2 bg-slate-900/60 hover:bg-slate-800 rounded-full border border-white/10 hover:border-emerald-500/30 text-slate-300 hover:text-emerald-400 transition-all text-xs font-bold shadow-sm"
+                title={currentTabTour ? `Ver tour de ${currentTabTour.tabName}` : 'Tour pelo Sistema'}
+              >
+                <HelpCircleIcon className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">
+                  {currentTabTour ? `Tour: ${currentTabTour.tabName}` : 'Tour pelo Sistema'}
+                </span>
+              </button>
+
+              {/* Network Status & Offline Indicator */}
+              <OfflineIndicator />
+
               <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-900/50 rounded-full border border-white/5">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Servidor Ativo</span>
               </div>
+
+              {/* In-App Notifications Dropdown */}
+              <NotificationDropdown />
+
               <img 
                 src={fbUser?.photoURL || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'} 
                 alt="Avatar" 

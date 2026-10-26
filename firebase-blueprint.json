@@ -53,6 +53,17 @@
         "createdAt": { "type": "string" }
       },
       "required": ["id", "name", "price", "justification", "priority", "createdAt"]
+    },
+    "SavingsChallenge": {
+      "title": "Savings Challenge",
+      "description": "60-day savings challenge progress and slots",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "totalDays": { "type": "number" }
+      },
+      "required": ["id", "targetAmount", "totalDays"]
     }
   },
   "firestore": {
@@ -71,6 +82,10 @@
     "/users/{userId}/wishlist/{wishlistId}": {
       "schema": "WishlistItem",
       "description": "User's wishlist items"
+    },
+    "/users/{userId}/savings_challenge/{challengeId}": {
+      "schema": "SavingsChallenge",
+      "description": "User's 60-day savings challenge state"
     }
   }
 }

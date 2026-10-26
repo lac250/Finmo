@@ -15,6 +15,7 @@ import { CategoryType } from '../types';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { getFinancialAdvice } from '../services/aiService';
+import { useCashFlowData } from '../hooks/useCashFlowData';
 
 const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: any) => {
     const isOver = percentage > (limit || 100);
@@ -47,7 +48,7 @@ const ProgressCard = ({ title, amount, percentage, color, icon: Icon, limit }: a
 };
 
 const Dashboard: React.FC = () => {
-    const { stats, transactions, addTransaction, wishlist, dailySnapshots } = useFinancial();
+    const { stats, transactions, addTransaction, wishlist, baseIncome, payday, fixedExpenses } = useFinancial();
     const [quickDesc, setQuickDesc] = useState('');
     const [quickAmount, setQuickAmount] = useState('');
     const [quickInterestAmount, setQuickInterestAmount] = useState('');
@@ -55,6 +56,9 @@ const Dashboard: React.FC = () => {
     const [quickCat, setQuickCat] = useState<CategoryType>(CategoryType.NEED);
     const [mentorTip, setMentorTip] = useState<{ message: string } | null>(null);
     const [immediateFeedback, setImmediateFeedback] = useState<string | null>(null);
+
+    // Calculate dynamic 30-day cash flow curves from real transactions and fixed expenses
+    const chartData = useCashFlowData(transactions, baseIncome, payday, fixedExpenses);
 
     useEffect(() => {
         if (stats) {
@@ -92,36 +96,6 @@ const Dashboard: React.FC = () => {
         setQuickJustification('');
     };
 
-    // Calculate chart data from snapshots
-    const chartData = useMemo(() => {
-        const data = [];
-        const today = new Date();
-        
-        // Find latest available snapshot to initialize
-        let lastVal = { balance: stats.totalIncome - stats.totalSpent, expenses: stats.totalSpent, savings: stats.savings };
-        
-        for (let i = 29; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
-            
-            const snapshot = dailySnapshots.find(s => s.date === dateStr);
-            
-            if (snapshot) {
-                lastVal = { balance: snapshot.balance, expenses: snapshot.expenses, savings: snapshot.savings };
-            }
-            
-            data.push({
-                date: dateStr.split('-').reverse().slice(0, 2).join('/'),
-                saldo: lastVal.balance,
-                despesas: lastVal.expenses,
-                reserva: lastVal.savings,
-                despesasFixas: stats.fixedNeeds + stats.fixedWants + stats.fixedDebts,
-            });
-        }
-        return data;
-    }, [dailySnapshots, stats]);
-
     const needPercentage = (stats.totalNeeds / stats.totalIncome) * 100 || 0;
     const wantPercentage = (stats.wants / stats.totalIncome) * 100 || 0;
     const savingPercentage = (stats.savings / stats.totalIncome) * 100 || 0;
@@ -129,7 +103,7 @@ const Dashboard: React.FC = () => {
     return (
         <div className="space-y-8 pb-20">
             {/* 50/30/20 Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div id="tour-50-30-20" className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <ProgressCard 
                     title="Essenciais (50%)" 
                     amount={stats.totalNeeds} 
@@ -159,7 +133,7 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Chart Area */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="glass p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-white/5 space-y-6">
+                    <div id="tour-cashflow-chart" className="glass p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-white/5 space-y-6">
                         <div className="flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-bold text-white">Fluxo de Caixa</h2>
@@ -200,11 +174,21 @@ const Dashboard: React.FC = () => {
                                         fontSize={10} 
                                         tickLine={false} 
                                         axisLine={false}
+                                        minTickGap={18}
                                     />
                                     <YAxis hide />
                                     <Tooltip 
-                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)' }}
                                         itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                        formatter={(value: any, name: any) => {
+                                            const labels: Record<string, string> = {
+                                                saldo: 'Saldo Acumulado',
+                                                despesas: 'Despesas do Dia',
+                                                reserva: 'Aporte Reserva',
+                                                despesasFixas: 'Despesas Fixas'
+                                            };
+                                            return [`${Number(value || 0).toLocaleString()} MT`, labels[String(name)] || name];
+                                        }}
                                     />
                                     <Area 
                                         type="monotone" 
@@ -277,7 +261,7 @@ const Dashboard: React.FC = () => {
                 {/* Sidebar Column */}
                 <div className="space-y-6">
                     {/* Quick Add Form */}
-                    <div className="glass p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-white/5 space-y-6">
+                    <div id="tour-transaction-form" className="glass p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-white/5 space-y-6">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500">
                                 <PlusIcon className="w-4 h-4" />

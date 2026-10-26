@@ -45,7 +45,7 @@ service cloud.firestore {
              data.description is string && data.description.size() <= 200 &&
              data.amount is number &&
              data.justification is string && data.justification.size() <= 1000 &&
-             data.category in ['NEED', 'WANT', 'SAVING', 'INCOME'];
+             data.category in ['NEED', 'WANT', 'SAVING', 'INCOME', 'DEBT_INTEREST', 'DEBT_NO_INTEREST'];
     }
 
     function isValidTransaction(data) {
@@ -53,7 +53,7 @@ service cloud.firestore {
              data.description is string && data.description.size() <= 200 &&
              data.amount is number &&
              data.justification is string && data.justification.size() <= 1000 &&
-             data.category is string &&
+             data.category is string && data.category in ['NEED', 'WANT', 'SAVING', 'INCOME', 'DEBT_INTEREST', 'DEBT_NO_INTEREST'] &&
              data.subcategory is string &&
              data.date is string &&
              // Handle optional fields and server timestamps
@@ -68,6 +68,14 @@ service cloud.firestore {
              data.price is number &&
              data.justification is string && data.justification.size() <= 1000 &&
              data.priority in [1, 2, 3];
+    }
+
+    function isValidSavingsChallenge(data) {
+      return data.keys().hasAll(['id', 'targetAmount', 'totalDays', 'slots']) &&
+             data.id is string &&
+             data.targetAmount is number &&
+             data.totalDays is number &&
+             data.slots is list;
     }
 
     // --- Collections ---
@@ -103,6 +111,12 @@ service cloud.firestore {
 
       match /daily_snapshots/{snapshotId} {
         allow list, get: if isOwner(userId);
+      }
+
+      match /savings_challenge/{challengeId} {
+        allow list, get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSavingsChallenge(incoming());
+        allow delete: if isOwner(userId);
       }
     }
   }

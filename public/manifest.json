@@ -1,23 +1,62 @@
 {
+  "id": "/",
   "name": "Finmo",
   "short_name": "Finmo",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#10b981",
-  "description": "Seu mentor financeiro pessoal baseado na regra 50/30/20.",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Seu mentor financeiro pessoal baseado na regra 50/30/20 com suporte 100% offline.",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo Registro",
+      "short_name": "Registro",
+      "description": "Adicionar transação rapidamente",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Desafio de Poupança",
+      "short_name": "Desafio",
+      "description": "Ver slots e fazer aportes",
+      "url": "/challenge",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Reserva",
+      "short_name": "Reserva",
+      "description": "Ver saldo protegido da reserva",
+      "url": "/reserve",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mentor IA",
+      "short_name": "Mentor",
+      "description": "Análises financeiras inteligentes",
+      "url": "/mentor",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
     }
   ]
 }

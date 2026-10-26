@@ -77,15 +77,16 @@ export const getFinancialAdvice = async (
     if (!response.ok) {
       if (response.status === 429) {
         console.warn("Gemini API rate limit exceeded (429). Usando fallback local para conselhos.");
-        return getLocalFallbackAdvice(stats);
+      } else {
+        console.warn(`Aviso: Servidor retornou status ${response.status}. Usando fallback local.`);
       }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return getLocalFallbackAdvice(stats);
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error("Erro crítico na comunicação com Servidor AI:", error);
+    console.warn("Aviso na comunicação com Servidor AI, acionando fallback:", error);
     return getLocalFallbackAdvice(stats);
   }
 };

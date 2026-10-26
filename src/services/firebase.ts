@@ -82,12 +82,25 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+let isLoginInProgress = false;
+
 export async function loginWithGoogle() {
+  if (isLoginInProgress) return;
+  isLoginInProgress = true;
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error signing in with Google", error);
+    if (error?.code === 'auth/popup-blocked') {
+      throw new Error("O navegador bloqueou o pop-up de login. Por favor, permita pop-ups para este site.");
+    }
+    if (error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/popup-closed-by-user') {
+      throw new Error("O login foi cancelado. Tente novamente quando estiver pronto.");
+    }
     throw error;
+  } finally {
+    isLoginInProgress = false;
   }
 }
+

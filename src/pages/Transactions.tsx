@@ -38,12 +38,14 @@ const Transactions: React.FC = () => {
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!desc || !amount || !justification) return;
+        if (!desc || !amount) return;
+
+        const finalJustification = justification.trim() || 'Gasto diário / Registro geral';
 
         // Immediate Behavioral Insight Logic
         const keyword = "tempo";
-        if (justification.toLowerCase().includes(keyword)) {
-            const count = transactions.filter(t => t.justification.toLowerCase().includes(keyword)).length + 1;
+        if (finalJustification.toLowerCase().includes(keyword)) {
+            const count = transactions.filter(t => t.justification?.toLowerCase().includes(keyword)).length + 1;
             if (count >= 2) {
                 setImmediateFeedback(`Atenção: Este é o seu ${count}º gasto motivado por 'falta de tempo' recentemente. Isso já soma uma quantia considerável que poderia ir para sua Reserva.`);
                 setTimeout(() => setImmediateFeedback(null), 8000);
@@ -53,7 +55,7 @@ const Transactions: React.FC = () => {
         const txData: Omit<Transaction, 'id'> = {
             description: desc,
             amount: Number(amount),
-            justification,
+            justification: finalJustification,
             category,
             subcategory: subcategory || 'Geral',
             date: new Date().toISOString()
@@ -74,12 +76,12 @@ const Transactions: React.FC = () => {
 
     const handleAddFixed = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!fixedDesc || !fixedAmount || !fixedJustification) return;
+        if (!fixedDesc || !fixedAmount) return;
         
         await addFixedExpense({
             description: fixedDesc,
             amount: Number(fixedAmount),
-            justification: fixedJustification,
+            justification: fixedJustification.trim() || 'Despesa fixa',
             category: fixedCategory
         });
         

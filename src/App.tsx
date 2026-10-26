@@ -2,11 +2,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { FinancialProvider, useFinancial } from './contexts/FinancialContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import RootLayout from './layouts/RootLayout';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Mentor from './pages/Mentor';
 import Reserve from './pages/Reserve';
+import Challenge from './pages/Challenge';
 import Wishlist from './pages/Wishlist';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
@@ -31,6 +34,7 @@ const AppRoutes: React.FC = () => {
                 <Route path="transactions" element={<Transactions />} />
                 <Route path="mentor" element={<Mentor />} />
                 <Route path="reserve" element={<Reserve />} />
+                <Route path="challenge" element={<Challenge />} />
                 <Route path="wishlist" element={<Wishlist />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -43,7 +47,11 @@ const App: React.FC = () => {
     return (
         <BrowserRouter>
             <FinancialProvider>
-                <AppRoutes />
+                <NotificationProvider>
+                    <OnboardingProvider>
+                        <AppRoutes />
+                    </OnboardingProvider>
+                </NotificationProvider>
             </FinancialProvider>
         </BrowserRouter>
     );

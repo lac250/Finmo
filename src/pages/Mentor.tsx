@@ -85,7 +85,7 @@ const Mentor: React.FC = () => {
             </header>
 
             {!isChatOpen ? (
-                <div className="glass p-8 rounded-[2.5rem] relative overflow-hidden group">
+                <div id="tour-mentor-chat-box" className="glass p-8 rounded-[2.5rem] relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-5">
                         <BrainCircuitIcon className="w-32 h-32" />
                     </div>
@@ -102,19 +102,40 @@ const Mentor: React.FC = () => {
                                     <SparklesIcon className="w-10 h-10 text-slate-600" />
                                 </div>
                                 <p className="text-slate-500 max-w-xs mx-auto">Receba uma análise automatizada ou converse diretamente comigo sobre seus planos.</p>
-                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                    <button 
-                                        onClick={fetchAdvice}
-                                        className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-lg active:scale-95"
-                                    >
-                                        Pedir Conselho
-                                    </button>
-                                    <button 
-                                        onClick={() => setIsChatOpen(true)}
-                                        className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-2"
-                                    >
-                                        <MessageSquareIcon className="w-4 h-4" /> Conversar com Finmo
-                                    </button>
+                                <div id="tour-mentor-prompts" className="space-y-4">
+                                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                        <button 
+                                            onClick={fetchAdvice}
+                                            className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl transition-all shadow-lg active:scale-95"
+                                        >
+                                            Pedir Conselho
+                                        </button>
+                                        <button 
+                                            onClick={() => setIsChatOpen(true)}
+                                            className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-2"
+                                        >
+                                            <MessageSquareIcon className="w-4 h-4" /> Conversar com Finmo
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black w-full text-center">Prompts Inteligentes:</span>
+                                        {[
+                                            "Como acelerar minha reserva de emergência?",
+                                            "Onde consigo economizar este mês?",
+                                            "Qual o impacto dos juros nas minhas despesas?"
+                                        ].map((promptText, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setIsChatOpen(true);
+                                                    setUserInput(promptText);
+                                                }}
+                                                className="px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/20 text-xs text-slate-400 hover:text-emerald-400 transition-all font-medium"
+                                            >
+                                                {promptText}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </motion.div>
                         ) : loading ? (
@@ -155,23 +176,23 @@ const Mentor: React.FC = () => {
                                         </div>
                                         
                                         <div className="space-y-4">
-                                            {advice.habitsReport.triggers.map((trigger, i) => (
+                                            {advice.habitsReport?.triggers?.map((trigger, i) => (
                                                 <div key={i} className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 space-y-2">
                                                     <div className="flex justify-between items-center">
-                                                        <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">{trigger.name}</span>
-                                                        <span className="text-xs font-bold text-white">{trigger.total.toLocaleString()} MT ({trigger.count}x)</span>
+                                                        <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">{trigger?.name || "Hábito"}</span>
+                                                        <span className="text-xs font-bold text-white">{Number(trigger?.total || 0).toLocaleString()} MT ({trigger?.count || 0}x)</span>
                                                     </div>
-                                                    <p className="text-[10px] text-slate-400 leading-relaxed">{trigger.suggestion}</p>
+                                                    <p className="text-[10px] text-slate-400 leading-relaxed">{trigger?.suggestion || ""}</p>
                                                 </div>
                                             ))}
                                         </div>
 
                                         <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
                                             <div className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-1">Destaque Negativo</div>
-                                            <p className="text-xs text-white leading-relaxed mb-2">{advice.habitsReport.topBadHabit}</p>
+                                            <p className="text-xs text-white leading-relaxed mb-2">{advice.habitsReport?.topBadHabit || "Nenhum ponto crítico identificado"}</p>
                                             <div className="pt-2 border-t border-emerald-500/10">
                                                 <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Potencial de Economia: </span>
-                                                <span className="text-xs font-black text-white">{advice.habitsReport.savingsPotential}</span>
+                                                <span className="text-xs font-black text-white">{advice.habitsReport?.savingsPotential || "0 MT"}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -180,7 +201,7 @@ const Mentor: React.FC = () => {
                                 <div className="space-y-4 pt-4 border-t border-white/5">
                                     <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest pl-2">Próximos Passos</h4>
                                     <div className="grid gap-3">
-                                        {advice?.recommendations.map((rec, i) => (
+                                        {advice?.recommendations?.map((rec, i) => (
                                             <motion.div 
                                                 key={i}
                                                 initial={{ opacity: 0, x: -10 }}
@@ -215,6 +236,7 @@ const Mentor: React.FC = () => {
                 </div>
             ) : (
                 <motion.div 
+                    id="tour-mentor-chat-box"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="glass flex flex-col h-[600px] rounded-[2.5rem] overflow-hidden border-white/10"

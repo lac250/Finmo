@@ -83,3 +83,20 @@ export interface AIAdvice {
     savingsPotential: string;
   };
 }
+
+export interface ChallengeSlot {
+  id: number;
+  tier: 'light' | 'medium' | 'intense';
+  amount: number;
+  isCompleted: boolean;
+  completedAt?: string | null;
+}
+
+export interface SavingsChallenge {
+  id: string;
+  targetAmount: number;
+  totalDays: number;
+  slots: ChallengeSlot[];
+  updatedAt?: any;
+}
+
